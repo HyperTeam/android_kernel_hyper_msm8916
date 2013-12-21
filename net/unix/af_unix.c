@@ -765,7 +765,6 @@ static struct sock *unix_create1(struct net *net, struct socket *sock)
 	INIT_LIST_HEAD(&u->link);
 	mutex_init(&u->readlock); /* single task reading lock */
 	init_waitqueue_head(&u->peer_wait);
-	init_waitqueue_func_entry(&u->peer_wake, unix_dgram_peer_wake_relay);
 	unix_insert_socket(unix_sockets_unbound(sk), sk);
 out:
 	if (sk == NULL)
@@ -2440,6 +2439,10 @@ static unsigned int unix_dgram_poll(struct file *file, struct socket *sock,
 #define get_bucket(x) ((x) >> BUCKET_SPACE)
 #define get_offset(x) ((x) & ((1L << BUCKET_SPACE) - 1))
 #define set_bucket_offset(b, o) ((b) << BUCKET_SPACE | (o))
+
+struct unix_iter_state {
+	struct seq_net_private p;
+};
 
 static struct sock *unix_from_bucket(struct seq_file *seq, loff_t *pos)
 {
