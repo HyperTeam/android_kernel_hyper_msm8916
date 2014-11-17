@@ -3130,6 +3130,14 @@ int wm_adsp_stream_start(struct wm_adsp *dsp)
 	adsp_dbg(dsp, "Set watermark to %u\n", dsp->capt_watermark);
 
 	return 0;
+
+out_fw:
+	regmap_async_complete(regmap);
+	release_firmware(firmware);
+	wm_adsp_buf_free(&buf_list);
+out:
+	kfree(file);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(wm_adsp_stream_start);
 
