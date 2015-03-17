@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -30,19 +30,8 @@
 
 static struct work_struct lpm_wa_work;
 static struct workqueue_struct *lpm_wa_wq;
+static bool lpm_wa_cx_turbo_unvote;
 static bool skip_l2_spm;
-static bool enable_dynamic_clock_gating;
-static bool is_l1_l2_gcc_secure;
-static bool store_clock_gating;
-int non_boot_cpu_index;
-void __iomem *l2_pwr_sts;
-void __iomem *l1_l2_gcc;
-struct device_clnt_data      *hotplug_handle;
-union device_request curr_req;
-cpumask_t l1_l2_offline_mask;
-cpumask_t offline_mask;
-struct resource *l1_l2_gcc_res;
-uint32_t l2_status = -1;
 
 static int lpm_wa_callback(struct notifier_block *cpu_nb,
 	unsigned long action, void *hcpu)
@@ -142,8 +131,14 @@ bool lpm_wa_get_skip_l2_spm(void)
 }
 EXPORT_SYMBOL(lpm_wa_get_skip_l2_spm);
 
-static ssize_t store_clock_gating_enabled(struct kobject *kobj,
-		struct kobj_attribute *attr, const char *buf, size_t count)
+bool lpm_wa_get_skip_l2_spm(void)
+{
+	return skip_l2_spm;
+}
+EXPORT_SYMBOL(lpm_wa_get_skip_l2_spm);
+
+
+static int lpm_wa_cx_unvote_init(struct platform_device *pdev)
 {
 	int ret = 0, val = 0;
 
@@ -246,53 +241,8 @@ static int lpm_wa_probe(struct platform_device *pdev)
 		}
 	}
 
-	module_kobj = kset_find_obj(module_kset, "lpm_levels");
-	if (!module_kobj) {
-		pr_err("%s: cannot find kobject for module lpm_levels\n",
-							__func__);
-		ret = -ENOENT;
-	}
-
-	module_lpm_wa = kobject_create_and_add("lpm_workarounds",
-							module_kobj);
-	if (!module_lpm_wa) {
-		pr_err("%s: cannot create kobject for module %s\n",
-			__func__, KBUILD_MODNAME);
-		ret = -ENOENT;
-	}
-
-	ret = sysfs_create_file(module_lpm_wa,
-					&clock_gating_enabled_attr.attr);
-	if (ret) {
-		pr_err("cannot create attr group. err:%d\n", ret);
-		return ret;
-	}
-
-	hotplug_handle = devmgr_register_mitigation_client(&pdev->dev,
-						HOTPLUG_DEVICE,	NULL);
-	if (IS_ERR_OR_NULL(hotplug_handle)) {
-		ret = PTR_ERR(hotplug_handle);
-		pr_err("Error registering for hotplug. ret:%d\n", ret);
-		return ret;
-	}
-
-	INIT_WORK(&lpm_wa_work, process_lpm_workarounds);
-
-	lpm_wa_wq = alloc_workqueue("lpm-wa",
-			WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_HIGHPRI, 1);
-	if (IS_ERR_OR_NULL(lpm_wa_wq)) {
-		ret = PTR_ERR(lpm_wa_wq);
-		pr_err("%s: Failed to allocate workqueue\n", __func__);
-		return ret;
-	}
-
-	for_each_present_cpu(cpu) {
-		if (cpu < non_boot_cpu_index) {
-			if (!cpumask_test_cpu(cpu, cpu_online_mask))
-				cpumask_set_cpu(cpu, &offline_mask);
-		}
-	}
-	register_hotcpu_notifier(&lpm_wa_nblk);
+	skip_l2_spm = of_property_read_bool(pdev->dev.of_node,
+					"qcom,lpm-wa-skip-l2-spm");
 	return ret;
 }
 
