@@ -16,7 +16,7 @@
 
 include $(srctree)/arch/arm64/boot/dts/qcom/Makefile
 
-targets := Image Image.gz
+targets := Image Image-dtb Image.gz Image.gz-dtb
 
 dtb-y += $(notdir $(wildcard $(obj)/dts/*.dtb))
 DTB_NAMES := $(subst $\",,$(CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE_NAMES))
