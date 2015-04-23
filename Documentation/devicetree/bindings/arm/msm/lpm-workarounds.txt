@@ -26,6 +26,17 @@ The optional properties are:
 	based on the L2 mode flag passed. Set lpm-wa-skip-l2-spm node if this
 	is required.
 
+- qcom,lpm-wa-dynamic-clock-gating: Due to a hardware bug on 8952, L1/L2 dynamic
+	clock gating needs to be enabled by software for performance cluster
+	cores and L2. Set lpm-wa-dynamic-clock-gating node if this workaround is
+	required.
+
+- qcom,cpu-offline-mask: Dynamic clock gating should be enabled when cluster is
+	in L2 PC. Each bit of cpu-offline-mask lists the cpu no. to hotplug by KTM
+	driver.
+
+- qcom,non-boot-cpu-index: will hold index of non boot cluster cpu.
+
 Example:
 
 qcom,lpm-workarounds {
