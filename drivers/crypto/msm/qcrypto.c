@@ -2035,7 +2035,7 @@ again:
 		arsp = &cipher_rctx->rsp_entry;
 		list_add_tail(
 			&arsp->list,
-			&((struct qcrypto_sha_ctx *)tfm_ctx)
+			&((struct qcrypto_cipher_ctx *)tfm_ctx)
 				->rsp_queue);
 		break;
 	case CRYPTO_ALG_TYPE_AEAD:
@@ -2046,7 +2046,7 @@ again:
 		arsp = &cipher_rctx->rsp_entry;
 		list_add_tail(
 			&arsp->list,
-			&((struct qcrypto_sha_ctx *)tfm_ctx)
+			&((struct qcrypto_cipher_ctx *)tfm_ctx)
 				->rsp_queue);
 		break;
 	}
