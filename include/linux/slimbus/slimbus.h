@@ -544,6 +544,10 @@ enum slim_clk_state {
  *	errors (e.g. overflow/underflow) if any.
  * @xfer_user_msg: Send user message to specified logical address. Underlying
  *	controller has to support sending user messages. Returns error if any.
+ * @xfer_bulk_wr: Send bulk of write messages to specified logical address.
+ *	Underlying controller has to support this. Typically useful to transfer
+ *	messages to download firmware, or messages where strict ordering for
+ *	slave is necessary
  */
 struct slim_controller {
 	struct device		dev;
@@ -594,10 +598,10 @@ struct slim_controller {
 	int			(*xfer_user_msg)(struct slim_controller *ctrl,
 				u8 la, u8 mt, u8 mc,
 				struct slim_ele_access *msg, u8 *buf, u8 len);
-	int (*xfer_bulk_wr)(struct slim_controller *ctrl,
-			u8 la, u8 mt, u8 mc, struct slim_val_inf msgs[],
-			int n, int (*comp_cb)(void *ctx, int err),
-			void *ctx);
+	int			(*xfer_bulk_wr)(struct slim_controller *ctrl,
+				u8 la, u8 mt, u8 mc, struct slim_val_inf msgs[],
+				int n, int (*comp_cb)(void *ctx, int err),
+				void *ctx);
 };
 #define to_slim_controller(d) container_of(d, struct slim_controller, dev)
 
