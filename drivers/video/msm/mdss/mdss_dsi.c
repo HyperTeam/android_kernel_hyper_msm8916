@@ -27,6 +27,10 @@
 #include <linux/pm_qos.h>
 #endif
 
+#ifdef CONFIG_STATE_NOTIFIER
+#include <linux/state_notifier.h>
+#endif
+
 #include "mdss.h"
 #include "mdss_panel.h"
 #include "mdss_dsi.h"
@@ -1376,8 +1380,13 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 		if (ctrl_pdata->on_cmds.link_state == DSI_HS_MODE)
 			rc = mdss_dsi_unblank(pdata);
 		pdata->panel_info.esd_rdy = true;
+<<<<<<< HEAD
 #ifdef CONFIG_MACH_WT86518
 		Packet_PLAG=0;
+=======
+#ifdef CONFIG_STATE_NOTIFIER
+		state_resume();
+>>>>>>> f1cc8ea... state_notifier: added related track into mdss events
 #endif
 		break;
 	case MDSS_EVENT_BLANK:
@@ -1392,6 +1401,9 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 			rc = mdss_dsi_blank(pdata, power_state);
 		if (!(pdata->panel_info.mipi.always_on))
 			rc = mdss_dsi_off(pdata, power_state);
+#ifdef CONFIG_STATE_NOTIFIER
+		state_suspend();
+#endif
 		break;
 	case MDSS_EVENT_CONT_SPLASH_FINISH:
 		if (ctrl_pdata->off_cmds.link_state == DSI_LP_MODE)
