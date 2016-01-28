@@ -21,7 +21,7 @@
 #include <linux/leds.h>
 #include <linux/qpnp/pwm.h>
 #include <linux/err.h>
-
+#include <linux/display_state.h>
 #include "mdss_dsi.h"
 #ifdef CONFIG_MACH_WT86518
 #include <linux/hardware_info.h> //req  wuzhenzhen.wt 20140924 add for hardware info
@@ -45,9 +45,19 @@
 #endif
 
 DEFINE_LED_TRIGGER(bl_led_trigger);
+
 #ifdef CONFIG_MACH_WT86518
 extern bool is_Lcm_Present;//heming@wingtech.com,20140730, disable lcm backlight when lcm is not connected
 #endif
+
+bool display_on = true;
+
+bool is_display_on()
+{
+	return display_on;
+}
+
+>>>>>>> c155824... display: add a simple api to query the display state (on/off) at any point in time
 void mdss_dsi_panel_pwm_cfg(struct mdss_dsi_ctrl_pdata *ctrl)
 {
 	if (ctrl->pwm_pmi)
@@ -668,6 +678,8 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	gpio_set_value(TPS65132_GPIO_NEG_EN, 1);
 #endif
 
+	display_on = true;
+
 	pinfo = &pdata->panel_info;
 	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
@@ -752,6 +764,8 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 
 	if (ctrl->off_cmds.cmd_cnt)
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->off_cmds);
+
+	display_on = false;
 
 end:
 	pinfo->blank_state = MDSS_PANEL_BLANK_BLANK;
