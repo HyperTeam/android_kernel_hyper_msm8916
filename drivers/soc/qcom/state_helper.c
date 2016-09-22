@@ -193,8 +193,10 @@ void batt_level_notify(int k)
 			STATE_HELPER, info.batt_level);
 
 	/* Reschedule only if required. */
-	if (info.batt_level == helper.batt_level_cri || 
-		info.batt_level == helper.batt_level_eco)
+	if (info.batt_level == helper.batt_level_cri ||
+		info.batt_level == helper.batt_level_cri+1 ||
+		info.batt_level == helper.batt_level_eco ||
+		info.batt_level == helper.batt_level_eco+1)
 		reschedule_helper();
 }
 
