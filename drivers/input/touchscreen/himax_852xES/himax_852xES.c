@@ -2057,7 +2057,7 @@ else/*tp_key_index =0x00*/
 	}
 }
 
-inline void himax_ts_work(struct himax_ts_data *ts)
+static inline void himax_ts_work(struct himax_ts_data *ts)
 {
 	int ret = 0;
 	uint8_t buf[128], finger_num, hw_reset_check[2];
