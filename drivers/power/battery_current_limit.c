@@ -254,7 +254,7 @@ static int __ref bcl_cpu_ctrl_callback(struct notifier_block *nfb,
 	if (action == CPU_UP_PREPARE || action == CPU_UP_PREPARE_FROZEN) {
 		if ((bcl_hotplug_mask & BIT(cpu))
 			&& (bcl_hotplug_request & BIT(cpu))) {
-			pr_info("preventing CPU%d from coming online\n", cpu);
+			pr_debug("preventing CPU%d from coming online\n", cpu);
 			return NOTIFY_BAD;
 		} else {
 			pr_debug("voting for CPU%d to be online\n", cpu);
