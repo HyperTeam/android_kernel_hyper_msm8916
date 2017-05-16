@@ -1626,7 +1626,7 @@ int usb_hcd_unlink_urb (struct urb *urb, int status)
 		if (retval == 0)
 			retval = -EINPROGRESS;
 		else if (retval != -EIDRM && retval != -EBUSY)
-			dev_dbg(&udev->dev, "hcd_unlink_urb %p fail %d\n",
+			dev_dbg(&udev->dev, "hcd_unlink_urb %pK fail %d\n",
 					urb, retval);
 		usb_put_dev(udev);
 	}
