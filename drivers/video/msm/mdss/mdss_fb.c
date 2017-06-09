@@ -51,10 +51,10 @@
 #include <linux/qcom_iommu.h>
 #include <linux/msm_iommu_domains.h>
 
-#include "mdss_dsi.h"
-#include "mdss_mdp.h"
 #include "mdss_fb.h"
 #include "mdss_mdp_splash_logo.h"
+
+#include "mdss_livedisplay.h"
 
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MDSS_FB_NUM 3
@@ -236,25 +236,11 @@ static int mdss_fb_notify_update(struct msm_fb_data_type *mfd,
 
 static int lcd_backlight_registered;
 
-/* heming@wingtech.com, 20140731, customize the backlight by wingtech defined, begin */
-#define WINGTECH_MDSS_BRIGHT_TO_BL(out, v, bl_min, bl_max, min_bright, max_bright) do {\
-					if(v <= ((int)min_bright*(int)bl_max-(int)bl_min*(int)max_bright)\
-						/((int)bl_max - (int)bl_min)) out = 1; \
-					else \
-					out = (((int)bl_max - (int)bl_min)*v + \
-					((int)max_bright*(int)bl_min - (int)min_bright*(int)bl_max)) \
-					/((int)max_bright - (int)min_bright); \
-					} while (0)
-/* heming@wingtech.com, 20140731, customize the backlight by wingtech defined, end */
-
-
 static void mdss_fb_set_bl_brightness(struct led_classdev *led_cdev,
 				      enum led_brightness value)
 {
 	struct msm_fb_data_type *mfd = dev_get_drvdata(led_cdev->dev->parent);
-	int bl_lvl, brightness_min;
-
-	brightness_min = 10;
+	int bl_lvl;
 
 	if (mfd->boot_notification_led) {
 		led_trigger_event(mfd->boot_notification_led, 0);
@@ -266,19 +252,9 @@ static void mdss_fb_set_bl_brightness(struct led_classdev *led_cdev,
 
 	/* This maps android backlight level 0 to 255 into
 	   driver backlight level 0 to bl_max with rounding */
-	/* heming@wingtech.com, 20140731, customize the backlight by wingtech defined, begin */
-	#if 1
-		//defualt setting for MMI, 0 ~ 255, Driver: 8 ~ 255
-		if(mfd->panel_info->bl_min == 1)mfd->panel_info->bl_min = 8;//for the case of set bl_min to 1
-		WINGTECH_MDSS_BRIGHT_TO_BL(bl_lvl, value, mfd->panel_info->bl_min, mfd->panel_info->bl_max, 
-		brightness_min, mfd->panel_info->brightness_max);
-
-		if(bl_lvl && !value)bl_lvl = 0;
-	#else
-		MDSS_BRIGHT_TO_BL(bl_lvl, value, mfd->panel_info->bl_max,
+	MDSS_BRIGHT_TO_BL(bl_lvl, value, mfd->panel_info->bl_max,
 				mfd->panel_info->brightness_max);
-	 #endif
-	/* heming@wingtech.com, 20140731, customize the backlight by wingtech defined, end */ 
+
 	if (!bl_lvl && value)
 		bl_lvl = 1;
 
@@ -749,7 +725,8 @@ static int mdss_fb_create_sysfs(struct msm_fb_data_type *mfd)
 	rc = sysfs_create_group(&mfd->fbi->dev->kobj, &mdss_fb_attr_group);
 	if (rc)
 		pr_err("sysfs group creation failed, rc=%d\n", rc);
-	return rc;
+
+	return mdss_livedisplay_create_sysfs(mfd);
 }
 
 static void mdss_fb_remove_sysfs(struct msm_fb_data_type *mfd)
@@ -1197,6 +1174,12 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 	if ((bkl_lvl == 0) && (mfd->doze_mode)) {
 		pr_debug("keeping backlight on with always-on displays\n");
 		mfd->unset_bl_level = 0;
+#ifdef CONFIG_MACH_WT86518
+		if(bkl_lvl==0)
+                    {  pdata = dev_get_platdata(&mfd->pdev->dev);
+                        pdata->set_backlight(pdata, bkl_lvl);  
+                    }	
+#endif
 		return;
 	}
 
@@ -1207,12 +1190,6 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 #endif
 		mfd->panel_info->cont_splash_enabled) {
 		mfd->unset_bl_level = bkl_lvl;
-          //+OTHER,mahao.wt,ADD,2015.4.7,Screen timeOut Off in powerOff Charging Mode
-               if(bkl_lvl==0)
-                    {  pdata = dev_get_platdata(&mfd->pdev->dev);
-                        pdata->set_backlight(pdata, bkl_lvl);
-                    }
-        //-OTHER,mahao.wt,ADD,2015.4.7,Screen timeOut Off in powerOff Charging Mode
 		return;
 	} else {
 		mfd->unset_bl_level = 0;
@@ -3461,8 +3438,7 @@ int mdss_fb_do_ioctl(struct fb_info *info, unsigned int cmd,
 	struct msm_sync_pt_data *sync_pt_data = NULL;
 	unsigned int dsi_mode = 0;
 	struct mdss_panel_data *pdata = NULL;
-	struct LCD_Color_mode Color_mode;
-	
+
 	if (!info || !info->par)
 		return -EINVAL;
 
@@ -3542,17 +3518,6 @@ int mdss_fb_do_ioctl(struct fb_info *info, unsigned int cmd,
 		ret = mdss_fb_lpm_enable(mfd, dsi_mode);
 		break;
 
-	/*+req_LCD wuzhenzhen.wt, add, 2015/09/03,add LCD gamma control code*/
-	case MSMFB_ENHANCE_SET_GAMMA:
-		if (copy_from_user(&Color_mode, argp, sizeof(Color_mode)))
-		{
-			pr_err("%s: MSMFB_ENHANCE_SET_GAMMA ioctl failed\n", __func__);
-			goto exit;
-		}
-		ret = mdss_panel_set_gamma(pdata, Color_mode);
-		
-		break;
-	/*-req_LCD wuzhenzhen.wt, add, 2015/09/03,add LCD gamma control code*/
 	default:
 		if (mfd->mdp.ioctl_handler)
 			ret = mfd->mdp.ioctl_handler(mfd, cmd, argp);

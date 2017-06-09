@@ -23,117 +23,24 @@
 #include <linux/regulator/consumer.h>
 #include <linux/leds-qpnp-wled.h>
 #include <linux/clk.h>
+#ifdef CONFIG_MACH_WT86518
 #include <linux/pm_qos.h>
+#endif
 
 #include "mdss.h"
 #include "mdss_panel.h"
 #include "mdss_dsi.h"
 #include "mdss_debug.h"
-#include <asm/uaccess.h>
-#include "linux/syscalls.h"
-
-/*+req_LCD wuzhenzhen.wt, add, 2015/8/17,add LCD gamma control code*/
-#define RAW_DATA_IMAGE_PATH "/dev/block/bootdevice/by-name/misc"
-#define RAW_DATA_OFFSET (64*1024)
-#define CE_GAMMA_MAGIC  0x43454741 //"C" "E" "G" "A"
+#include "mdss_livedisplay.h"
 
 #define XO_CLK_RATE	19200000
+#ifdef CONFIG_MACH_WT86518
+bool is_Lcm_Present = false;//heming@wingtech.com,20140730, disable lcm backlight when lcm is not connected
 
 #define DSI_DISABLE_PC_LATENCY 100
 #define DSI_ENABLE_PC_LATENCY PM_QOS_DEFAULT_VALUE
 
 static struct pm_qos_request mdss_dsi_pm_qos_request;
-
-struct ce_gamma ce_gamma_data;
-struct dsi_ce_gamma_event ce_gamma_event;
-
-int save_result_to_image(struct ce_gamma mode){
-	int fp = 0;
-	int result = 0;
-	struct ce_gamma current_mode;
-	int ret;
-
-	mm_segment_t old_fs = get_fs();
-
-	//read set kernel domain
-	set_fs(KERNEL_DS);
-        printk("save_result_to_image----1");
-
-	fp = sys_open(RAW_DATA_IMAGE_PATH, O_RDWR, 0);
-	if(fp >= 0){
-
-		sys_lseek(fp, RAW_DATA_OFFSET+0, SEEK_SET);
-		//read mode
-		ret = sys_read(fp, (char *)&current_mode, sizeof(struct ce_gamma));
-		if(sizeof(struct ce_gamma) != ret){
-			pr_err("[save_result_to_image] read mode fail, ret = %d\n", ret);
-			result = -1;
-			goto close_file;
-		}
-
-		if(current_mode.magic != CE_GAMMA_MAGIC){
-			// first write
-			pr_debug("[save_result_to_image] write data first, 0x%x, %d, %d, %d\n", mode.magic, mode.lcd_mode, mode.hue, mode.saturation);
-			sys_lseek(fp, RAW_DATA_OFFSET+0, SEEK_SET);
-			if(sizeof(struct ce_gamma) != sys_write(fp, (char *)&mode, sizeof(struct ce_gamma))){
-				result = -2;
-				goto close_file;
-			}
-		}
-		else {
-
-			if(current_mode.lcd_mode != mode.lcd_mode || current_mode.hue != mode.hue || current_mode.saturation != mode.saturation){
-				//save data
-				sys_lseek(fp, RAW_DATA_OFFSET+0, SEEK_SET);
-				pr_debug("[save_result_to_image] write data , 0x%x, %d, %d, %d\n", mode.magic, mode.lcd_mode, mode.hue, mode.saturation);
-				if(sizeof(struct ce_gamma) != sys_write(fp, (char *)&mode, sizeof(struct ce_gamma))){
-					result = -2;
-					goto close_file;
-				}
-
-			}
-		}
-
-	}else{
-		result = -3;
-		goto out;
-	}
-close_file:
-	//need set user domain again
-	set_fs(old_fs);
-	//close file
-	sys_close(fp);
-out:
-	if(result < 0){
-		pr_err("[save_result_to_image] save result to image fail, error=%d", result);
-	}
-	return result;
-}
-
-static int set_to_misc(void *data)
-{
-
-        init_waitqueue_head(&ce_gamma_event.ce_gamma_wq);
-	spin_lock_init(&ce_gamma_event.ce_gamma_lock);
-
-        while(1)
-        {
-            wait_event_interruptible(ce_gamma_event.ce_gamma_wq, ce_gamma_event.ce_gamma_flag);
-
-            if(kthread_should_stop()) break;
- 
-            if(save_result_to_image(ce_gamma_data) != 0)
-            {
-                pr_err("%s: save_result_to_image, fail\n", __func__);
-            }else{
-                pr_err("%s: save_result_to_image, sucess\n", __func__);
-            }
-            ce_gamma_event.ce_gamma_flag = 0;
- 
-        }
-
-        return 0;
-}
 
 static void mdss_dsi_pm_qos_add_request(void)
 {
@@ -153,6 +60,7 @@ static void mdss_dsi_pm_qos_update_request(int val)
              pr_debug("%s: update request %d",__func__,val);
              pm_qos_update_request(&mdss_dsi_pm_qos_request, val);
 }
+#endif
 
 static int mdss_dsi_pinctrl_set_state(struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 					bool active);
@@ -193,6 +101,10 @@ static int mdss_dsi_regulator_init(struct platform_device *pdev)
 	return rc;
 }
 
+#if defined(CONFIG_MACH_YULONG) && defined(CONFIG_REGULATOR_YL_TPS65132)
+extern void tps65132_config_set_to_tablet_mode(void);
+extern void tps65132_config_proc(void);
+#endif
 static int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
 {
 	int ret = 0;
@@ -250,15 +162,15 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 	int ret = 0;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	int i = 0;
-
-	/*heming add to power off panel while LCM initaltion fail, Begin
+#ifdef CONFIG_MACH_WT86518
+	/*heming add to power off panel while LCM initaltion fail, Begin*/
 	if(!is_Lcm_Present)
 	{
 		pr_err("%s: LCM not connect do not enable lcm power\n", __func__);
 		return -EINVAL;
 	}
-	heming add to power off panel while LCM initaltion fail, End*/	
-
+	/*heming add to power off panel while LCM initaltion fail, End*/
+#endif
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
 		return -EINVAL;
@@ -304,11 +216,18 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 		!pdata->panel_info.mipi.lp11_init) {
 		if (mdss_dsi_pinctrl_set_state(ctrl_pdata, true))
 			pr_debug("reset enable: pinctrl not enabled\n");
-
+#if defined(CONFIG_MACH_YULONG) && defined(CONFIG_REGULATOR_YL_TPS65132)
+		if (pdata->panel_info.mipi.has_tps65132)
+			tps65132_config_set_to_tablet_mode();
+#endif
 		ret = mdss_dsi_panel_reset(pdata, 1);
 		if (ret)
 			pr_err("%s: Panel reset failed. rc=%d\n",
 					__func__, ret);
+#if defined(CONFIG_MACH_YULONG) && defined(CONFIG_REGULATOR_YL_TPS65132)
+		if (pdata->panel_info.mipi.has_tps65132)
+			tps65132_config_proc();
+#endif
 	}
 
 error:
@@ -602,6 +521,12 @@ static int mdss_dsi_off(struct mdss_panel_data *pdata, int power_state)
 
 	panel_info = &ctrl_pdata->panel_data.panel_info;
 
+#if defined(CONFIG_MACH_CP8675)
+	/*add set reset low by liujianfeng3@yulong.com for yashi nt35596 lcd error display*/
+	gpio_set_value((ctrl_pdata->rst_gpio), 0);
+	usleep(100 * 1000);
+#endif
+
 	pr_debug("%s+: ctrl=%pK ndx=%d power_state=%d\n",
 		__func__, ctrl_pdata, ctrl_pdata->ndx, power_state);
 
@@ -743,7 +668,15 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	if (mipi->lp11_init) {
 		if (mdss_dsi_pinctrl_set_state(ctrl_pdata, true))
 			pr_debug("reset enable: pinctrl not enabled\n");
+#if defined(CONFIG_MACH_YULONG) && defined(CONFIG_REGULATOR_YL_TPS65132)
+		if (mipi->has_tps65132)
+			tps65132_config_set_to_tablet_mode();
+#endif
 		mdss_dsi_panel_reset(pdata, 1);
+#if defined(CONFIG_MACH_YULONG) && defined(CONFIG_REGULATOR_YL_TPS65132)
+		if (mipi->has_tps65132)
+			tps65132_config_proc();
+#endif
 	}
 
 	if (mipi->init_delay)
@@ -836,7 +769,9 @@ static int mdss_dsi_unblank(struct mdss_panel_data *pdata)
 
 	pr_debug("%s+: ctrl=%pK ndx=%d cur_blank_state=%d\n", __func__,
 		ctrl_pdata, ctrl_pdata->ndx, pdata->panel_info.blank_state);
+#ifdef CONFIG_MACH_WT86518
 	mdss_dsi_pm_qos_update_request(DSI_DISABLE_PC_LATENCY);
+#endif
 	mdss_dsi_clk_ctrl(ctrl_pdata, DSI_ALL_CLKS, 1);
 
 	if (pdata->panel_info.blank_state == MDSS_PANEL_BLANK_LOW_POWER) {
@@ -865,9 +800,14 @@ static int mdss_dsi_unblank(struct mdss_panel_data *pdata)
 			enable_irq(gpio_to_irq(ctrl_pdata->disp_te_gpio));
 	}
 
+	mdss_livedisplay_update(pdata->panel_info.livedisplay,
+			MODE_UPDATE_ALL);
+
 error:
 	mdss_dsi_clk_ctrl(ctrl_pdata, DSI_ALL_CLKS, 0);
+#ifdef CONFIG_MACH_WT86518
 	mdss_dsi_pm_qos_update_request(DSI_ENABLE_PC_LATENCY);
+#endif
 	pr_debug("%s-:\n", __func__);
 
 	return ret;
@@ -1387,6 +1327,10 @@ static int mdss_dsi_clk_refresh(struct mdss_panel_data *pdata)
 	return rc;
 }
 
+#ifdef CONFIG_MACH_WT86518
+int Packet_PLAG;
+#endif
+
 static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 				  int event, void *arg)
 {
@@ -1420,6 +1364,9 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 		mdss_dsi_get_hw_revision(ctrl_pdata);
 		if (ctrl_pdata->on_cmds.link_state == DSI_LP_MODE)
 			rc = mdss_dsi_unblank(pdata);
+#ifdef CONFIG_MACH_WT86518
+		Packet_PLAG=0;
+#endif
 		break;
 	case MDSS_EVENT_POST_PANEL_ON:
 		rc = mdss_dsi_post_panel_on(pdata);
@@ -1429,6 +1376,9 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 		if (ctrl_pdata->on_cmds.link_state == DSI_HS_MODE)
 			rc = mdss_dsi_unblank(pdata);
 		pdata->panel_info.esd_rdy = true;
+#ifdef CONFIG_MACH_WT86518
+		Packet_PLAG=0;
+#endif
 		break;
 	case MDSS_EVENT_BLANK:
 		power_state = (int) (unsigned long) arg;
@@ -1578,11 +1528,17 @@ static struct device_node *mdss_dsi_find_panel_of_node(
 			       __func__);
 			goto end;
 		}
+#ifdef CONFIG_MACH_WT86518
+		is_Lcm_Present = true;//heming@wingtech.com,20140730, disable lcm backlight when lcmis not connected
+#endif
 		return dsi_pan_node;
 	}
 end:
 	if (strcmp(panel_name, NONE_PANEL))
 		dsi_pan_node = mdss_dsi_pref_prim_panel(pdev);
+#ifdef CONFIG_MACH_WT86518
+	is_Lcm_Present = false;//heming@wingtech.com,20140730, disable lcm backlight when lcm is notconnected
+#endif
 	return dsi_pan_node;
 }
 
@@ -1735,13 +1691,9 @@ static int mdss_dsi_ctrl_probe(struct platform_device *pdev)
 		}
 		disable_irq(gpio_to_irq(ctrl_pdata->disp_te_gpio));
 	}
-
-	mutex_init(&ctrl_pdata->gamma_ctl_lock);
-
+#ifdef CONFIG_MACH_WT86518
 	mdss_dsi_pm_qos_add_request();
-
-       kthread_run(set_to_misc, NULL, "mdss_misc");
-
+#endif
 	pr_debug("%s: Dsi Ctrl->%d initialized\n", __func__, index);
 	return 0;
 
@@ -1779,9 +1731,9 @@ static int mdss_dsi_ctrl_remove(struct platform_device *pdev)
 		mdss_dsi_put_dt_vreg_data(&pdev->dev,
 			&ctrl_pdata->power_data[i]);
 	}
-
+#ifdef CONFIG_MACH_WT86518
 	mdss_dsi_pm_qos_remove_request();
-
+#endif
 	mfd = platform_get_drvdata(pdev);
 	msm_dss_iounmap(&ctrl_pdata->mmss_misc_io);
 	msm_dss_iounmap(&ctrl_pdata->phy_io);
@@ -2067,6 +2019,9 @@ int dsi_panel_device_register(struct device_node *pan_node,
 	ctrl_pdata->panel_data.event_handler = mdss_dsi_event_handler;
 
 	if (ctrl_pdata->status_mode == ESD_REG ||
+#ifdef CONFIG_MACH_YULONG
+			ctrl_pdata->status_mode == ESD_REG_YL ||
+#endif
 			ctrl_pdata->status_mode == ESD_REG_NT35596)
 		ctrl_pdata->check_status = mdss_dsi_reg_status_check;
 	else if (ctrl_pdata->status_mode == ESD_BTA)
@@ -2185,112 +2140,6 @@ static int mdss_dsi_register_driver(void)
 	return platform_driver_register(&mdss_dsi_ctrl_driver);
 }
 
-extern int mdss_dsi_panel_gamma(struct mdss_panel_data *pdata);
-int mdss_panel_set_gamma(struct mdss_panel_data *pdata, struct LCD_Color_mode mode)
-{
-	int ret = 0;
-	struct mipi_panel_info *mipi;
-	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
-
-	static int current_hue = 21, current_saturation = 0;
-	int hue_set = 0, saturation_set = 0;
-
-	//pr_debug("%s: Set panel gamma, mode.hue = %d, mode.saturation = %d\n", __func__ , mode.hue, mode.saturation);
-
-	if (pdata == NULL) {
-		pr_err("%s: Invalid input data\n", __func__);
-		return -EINVAL;
-	}
-	
-	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
-				panel_data);
-	mutex_lock(&ctrl_pdata->gamma_ctl_lock);
-		
-	mipi  = &pdata->panel_info.mipi;
-
-	mdss_dsi_clk_ctrl(ctrl_pdata, DSI_ALL_CLKS, 1);
-
-	switch (mode.lcd_mode) {
-	case DEFAULT:
-		hue_set = 21;
-		saturation_set = 3;
-		break;
-	case COMFORT:
-		hue_set = 0;
-		saturation_set = 2;
-		break;
-	case SUPERBRIGHT:
-		hue_set = 20;
-		saturation_set = 3;
-		break;
-	case CUST:
-		hue_set = ((100 - mode.hue)*(LCD_HUE_CMDS_NUM-2))/100; // from high to low, and 21 if default
-		saturation_set = (mode.saturation*(LCD_SATURATION_CMDS_NUM-1))/100;
-		break;
-	default:
-		ret = -EINVAL;
-		goto err_out;
-	}	
-
-	if(hue_set != current_hue)
-	{
-		current_hue = hue_set;
-		ctrl_pdata->cust_cmds[0] = ctrl_pdata->hue_cmds[current_hue];
-	}
-	else
-	{
-		ctrl_pdata->cust_cmds[0].cmd_cnt = 0;
-	}
-
-	if(saturation_set != current_saturation)
-	{
-		current_saturation = saturation_set;
-		ctrl_pdata->cust_cmds[1] = ctrl_pdata->saturation_cmds[current_saturation];
-	}
-	else
-	{
-		ctrl_pdata->cust_cmds[1].cmd_cnt = 0;
-	}
-	  
-	if(hue_set == current_hue) ctrl_pdata->cust_cmds[0] = ctrl_pdata->hue_cmds[current_hue];
-	if(saturation_set == current_saturation) ctrl_pdata->cust_cmds[1] = ctrl_pdata->saturation_cmds[current_saturation];
-
-	pr_debug("%s: Set panel gamma, mode.hue = %d, mode.saturation = %d\n", __func__ , current_hue, current_saturation);
-	pr_debug("%s: ctrl_pdata->cust_cmds[0].cmd_cnt = %d, ctrl_pdata->cust_cmds[1].cmd_cnt = %d\n", __func__ , ctrl_pdata->cust_cmds[0].cmd_cnt, ctrl_pdata->cust_cmds[1].cmd_cnt);
-	
-	ret = mdss_dsi_panel_gamma(pdata);	
-	if (ret) 
-	{
-		pr_err("%s: unable to set the panel gamma\n",
-							__func__);
-		goto err_out;
-	}
-	
-	ce_gamma_data.magic = CE_GAMMA_MAGIC;
-	ce_gamma_data.lcd_mode = mode.lcd_mode;
-	ce_gamma_data.hue = hue_set;
-	ce_gamma_data.saturation = saturation_set;
-    
-        spin_lock(&ce_gamma_event.ce_gamma_lock);
-        ce_gamma_event.ce_gamma_flag = 1;
-        wake_up(&ce_gamma_event.ce_gamma_wq);
-        spin_unlock(&ce_gamma_event.ce_gamma_lock);
-
-err_out:
-	mutex_unlock(&ctrl_pdata->gamma_ctl_lock);
-	mdss_dsi_clk_ctrl(ctrl_pdata, DSI_ALL_CLKS, 0);
-
-	if(mode.lcd_mode == DEFAULT)
-	{
-		ctrl_pdata->cust_cmds[0].cmd_cnt = 0;
-		ctrl_pdata->cust_cmds[1].cmd_cnt = 0;
-	}
-	return ret;
-
-}
-
-/*-req_LCD wuzhenzhen.wt, add, 2015/9/03,add LCD gamma control code*/
-
 static int __init mdss_dsi_driver_init(void)
 {
 	int ret;
@@ -2314,4 +2163,3 @@ module_exit(mdss_dsi_driver_cleanup);
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("DSI controller driver");
 MODULE_AUTHOR("Chandan Uddaraju <chandanu@codeaurora.org>");
-
