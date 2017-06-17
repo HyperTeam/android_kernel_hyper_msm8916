@@ -1232,7 +1232,8 @@ static int get_prop_capacity(struct qpnp_lbc_chip *chip)
 	if ((chip->cfg_use_fake_battery || !get_prop_batt_present(chip))&&(flag==0))
 	{
 		flag=1;
-		schedule_delayed_work(&chip->batt_pres_work,
+		queue_delayed_work(system_power_efficient_wq,
+			&chip->batt_pres_work,
 				msecs_to_jiffies(BATTERYE_CHECK_PERIOD_MS));
 	}
 
@@ -2131,7 +2132,8 @@ static irqreturn_t qpnp_lbc_usbin_valid_irq_handler(int irq, void *_chip)
 			 * charging gets enabled on USB insertion
 			 * irrespective of battery SOC above resume_soc.
 			 */
-			schedule_delayed_work(&chip->charger_work,
+			queue_delayed_work(system_power_efficient_wq,
+				&chip->charger_work,
 					msecs_to_jiffies(CHG_CHECK_PERIOD_MS));
 			input_current =false ;
 			if(!dc_chg_lock){
@@ -2787,7 +2789,8 @@ qpnp_lbc_charging_work(struct work_struct *work)
 
 	}
 check_again_later:
-	schedule_delayed_work(&chip->charger_work,
+	queue_delayed_work(system_power_efficient_wq,
+		&chip->charger_work,
 			msecs_to_jiffies(CHG_CHECK_PERIOD_MS));
 
 	return;
@@ -3188,7 +3191,8 @@ static int qpnp_lbc_probe(struct spmi_device *spmi)
 	}
 
 	if (qpnp_lbc_is_usb_chg_plugged_in(chip)){
-		schedule_delayed_work(&chip->charger_work,
+		queue_delayed_work(system_power_efficient_wq,
+			&chip->charger_work,
 				msecs_to_jiffies(CHG_CHECK_PERIOD_MS));
 		if(!dc_chg_lock){
 			printk("%s,add dc_chg_wake_lock:begin charging\n",__func__);
