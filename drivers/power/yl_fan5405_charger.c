@@ -738,7 +738,8 @@ static void fan5405_update_t32s_work(struct work_struct *work)
 		goto stop_update;
 	
 //update_again_later:
-	queue_delayed_work(chip->fan5405_wq, &chip->update_t32s_work,
+	queue_delayed_work(system_power_efficient_wq,
+		chip->fan5405_wq, &chip->update_t32s_work,
 		msecs_to_jiffies(UPDATE_T32S_PERIOD_MS));
 	return;
 
@@ -924,7 +925,8 @@ static void fan5405_update_heartbeat_work(struct work_struct *work)
 	
 	if(chip->batt_capa < BATT_CAPA_LOW_LEVEL)
 		update_period = UPDATE_HEART_PERIOD_FAST_MS;
-	queue_delayed_work(chip->fan5405_wq, &chip->update_heartbeat_work,
+	queue_delayed_work(system_power_efficient_wq,
+		chip->fan5405_wq, &chip->update_heartbeat_work,
 		msecs_to_jiffies(update_period));
 
 	pr_info(" %s: charge_stat = %d, vbus_present = %d, batt_volt = %d, batt_capa =%d, batt_temp =%d\n", __func__, 
@@ -1702,10 +1704,12 @@ static int fan5405_probe(struct i2c_client *client, const struct i2c_device_id *
 /* fan5405 en pin initialize */
 	fan5405_force_en_charging(chip, !chip->charging_disabled);
 
-	queue_delayed_work(chip->fan5405_wq, &chip->update_heartbeat_work,
+	queue_delayed_work(system_power_efficient_wq,
+		chip->fan5405_wq, &chip->update_heartbeat_work,
 		msecs_to_jiffies(UPDATE_HEART_PERIOD_FAST_MS - 10000));
 /*add begin by sunxiaogang@yulong.com 2015.03.10 to start the update_t32s_work when probe*/
-        queue_delayed_work(chip->fan5405_wq, &chip->update_t32s_work,
+        queue_delayed_work(system_power_efficient_wq,
+		chip->fan5405_wq, &chip->update_t32s_work,
                 msecs_to_jiffies(UPDATE_T32S_PERIOD_MS));
 /*add end by sunxiaogang@yulong.com*/
 	wakeup_source_init(&chip->batt_info_alarm_wlock, "batt_info_alarm");

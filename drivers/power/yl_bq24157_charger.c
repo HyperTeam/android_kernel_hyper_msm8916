@@ -923,7 +923,8 @@ static void bq24157_update_heartbeat_work(struct work_struct *work)
 	
 	if(chip->batt_capa < BATT_CAPA_LOW_LEVEL)
 		update_period = UPDATE_HEART_PERIOD_FAST_MS;
-	queue_delayed_work(chip->bq24157_wq, &chip->update_heartbeat_work,
+	queue_delayed_work(system_power_efficient_wq,
+		chip->bq24157_wq, &chip->update_heartbeat_work,
 		msecs_to_jiffies(update_period));
 
 	pr_debug(" %s: charge_stat = %d, vbus_present = %d, batt_volt = %d, batt_capa =%d, batt_temp =%d\n", __func__,
@@ -995,7 +996,8 @@ static irqreturn_t bq24157_stat_irq_handler(int irq, void *_chip)
 	struct bq24157_chip *chip = _chip;
 	
 	pr_info("bq24157 stat irq handler. \n");
-	queue_delayed_work(chip->bq24157_wq, &chip->irq_handler_work, msecs_to_jiffies(500));
+	queue_delayed_work(system_power_efficient_wq,
+		chip->bq24157_wq, &chip->irq_handler_work, msecs_to_jiffies(500));
 	
 
 	return IRQ_HANDLED;
@@ -1716,7 +1718,8 @@ static int bq24157_probe(struct i2c_client *client, const struct i2c_device_id *
 /* bq24157 en pin initialize */
 	bq24157_force_en_charging(chip, chip->charging_disabled);
 
-	queue_delayed_work(chip->bq24157_wq, &chip->update_heartbeat_work,
+	queue_delayed_work(system_power_efficient_wq,
+		chip->bq24157_wq, &chip->update_heartbeat_work,
 		msecs_to_jiffies(UPDATE_HEART_PERIOD_FAST_MS - 10000));
 
 	wakeup_source_init(&chip->batt_info_alarm_wlock, "batt_info_alarm");
