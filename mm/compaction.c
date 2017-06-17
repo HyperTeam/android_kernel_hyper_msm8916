@@ -1150,7 +1150,6 @@ module_param_named(compaction_screen_off_delay_ms, compaction_soff_delay_ms, int
 			0644);
 static unsigned long compaction_forced_timeout;
 
-
 static int fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
 {
 	struct fb_event *evdata = data;
@@ -1160,16 +1159,19 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
 		blank = evdata->data;
 
 		switch (*blank) {
-		case FB_BLANK_UNBLANK:
-			screen_on = true;
-		break;
-		default:
+		case FB_BLANK_POWERDOWN:
 			screen_on = false;
 			if (time_after(jiffies, compaction_forced_timeout) && !delayed_work_busy(&compaction_work)) {
 				compaction_forced_timeout = jiffies + msecs_to_jiffies(compaction_timeout_ms);
 				queue_delayed_work(compaction_wq, &compaction_work,
 					msecs_to_jiffies(compaction_soff_delay_ms));
 			}
+		break;
+		case FB_BLANK_UNBLANK:
+			screen_on = true;
+		break;
+		default:
+			screen_on = false;
 		}
 	}
 
