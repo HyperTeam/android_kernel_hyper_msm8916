@@ -55,15 +55,12 @@ obj-$(CONFIG_MSM_PIL_FEMTO) += pil-q6v5.o pil-msa.o pil-femto-modem.o
 obj-$(CONFIG_MSM_OCMEM) += ocmem.o ocmem_allocator.o ocmem_notifier.o
 obj-$(CONFIG_MSM_OCMEM) += ocmem_sched.o ocmem_api.o ocmem_rdm.o ocmem_core.o
 
-obj-$(CONFIG_MSM_PERFORMANCE) += msm_performance.o
-obj-$(CONFIG_MSM_CORE_CTL_HELPER) += core_ctl_helper.o
-obj-$(CONFIG_MSM_CORE_CTL) += core_ctl.o
-
 ifdef CONFIG_MSM_SUBSYSTEM_RESTART
        obj-y += subsystem_notif.o
        obj-y += subsystem_restart.o
        obj-y += ramdump.o
 endif
+
 obj-$(CONFIG_MSM_SYSMON_COMM) += sysmon.o sysmon-qmi.o
 obj-$(CONFIG_CP_ACCESS64) += cpaccess64.o
 obj-$(CONFIG_MSM_CPU_PWR_CTL) += cpu_pwr_ctl.o
