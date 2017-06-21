@@ -13,9 +13,13 @@
 #include <linux/syscalls.h>
 #include <linux/linkage.h>
 #include <linux/pagemap.h>
+#include <linux/module.h>
 #include <linux/quotaops.h>
 #include <linux/backing-dev.h>
 #include "internal.h"
+
+bool fsync_enabled = false;
+module_param(fsync_enabled, bool, 0755);
 
 #define VALID_FLAGS (SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE| \
 			SYNC_FILE_RANGE_WAIT_AFTER)
@@ -152,6 +156,9 @@ SYSCALL_DEFINE1(syncfs, int, fd)
 	struct super_block *sb;
 	int ret;
 
+	if (!fsync_enabled)
+		return 0;
+
 	if (!f.file)
 		return -EBADF;
 	sb = f.file->f_dentry->d_sb;
@@ -177,7 +184,11 @@ SYSCALL_DEFINE1(syncfs, int, fd)
  */
 int vfs_fsync_range(struct file *file, loff_t start, loff_t end, int datasync)
 {
+
 	struct inode *inode = file->f_mapping->host;
+
+	if (!fsync_enabled)
+		return 0;
 
 	if (!file->f_op || !file->f_op->fsync)
 		return -EINVAL;
@@ -201,6 +212,9 @@ EXPORT_SYMBOL(vfs_fsync_range);
  */
 int vfs_fsync(struct file *file, int datasync)
 {
+	if (!fsync_enabled)
+		return 0;
+
 	return vfs_fsync_range(file, 0, LLONG_MAX, datasync);
 }
 EXPORT_SYMBOL(vfs_fsync);
@@ -209,6 +223,9 @@ static int do_fsync(unsigned int fd, int datasync)
 {
 	struct fd f = fdget(fd);
 	int ret = -EBADF;
+
+	if (!fsync_enabled)
+		return 0;
 
 	if (f.file) {
 		ret = vfs_fsync(f.file, datasync);
@@ -219,11 +236,17 @@ static int do_fsync(unsigned int fd, int datasync)
 
 SYSCALL_DEFINE1(fsync, unsigned int, fd)
 {
+	if (!fsync_enabled)
+		return 0;
+
 	return do_fsync(fd, 0);
 }
 
 SYSCALL_DEFINE1(fdatasync, unsigned int, fd)
 {
+	if (!fsync_enabled)
+		return 0;
+
 	return do_fsync(fd, 1);
 }
 
@@ -235,8 +258,12 @@ SYSCALL_DEFINE1(fdatasync, unsigned int, fd)
  *
  * This is just a simple wrapper about our general syncing function.
  */
+
 int generic_write_sync(struct file *file, loff_t pos, loff_t count)
 {
+	if (!fsync_enabled)
+		return 0;
+
 	if (!(file->f_flags & O_DSYNC) && !IS_SYNC(file->f_mapping->host))
 		return 0;
 	return vfs_fsync_range(file, pos, pos + count - 1,
@@ -299,6 +326,9 @@ SYSCALL_DEFINE4(sync_file_range, int, fd, loff_t, offset, loff_t, nbytes,
 	struct address_space *mapping;
 	loff_t endbyte;			/* inclusive */
 	umode_t i_mode;
+
+	if (!fsync_enabled)
+		return 0;
 
 	ret = -EINVAL;
 	if (flags & ~VALID_FLAGS)
