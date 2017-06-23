@@ -233,7 +233,7 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
 		 *    to work from.
 		 */
 		rlim = current->signal->rlim;
-		if (size > ACCESS_ONCE(rlim[RLIMIT_STACK].rlim_cur) / 4)
+		if (size > READ_ONCE(rlim[RLIMIT_STACK].rlim_cur) / 4)
 			goto fail;
 	}
 
