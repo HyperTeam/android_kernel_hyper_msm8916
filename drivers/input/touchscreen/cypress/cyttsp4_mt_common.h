@@ -83,3 +83,4 @@ struct cyttsp4_mt_data {
 
 extern void cyttsp4_init_function_ptrs(struct cyttsp4_mt_data *md);
 extern struct cyttsp4_driver cyttsp4_mt_driver;
+

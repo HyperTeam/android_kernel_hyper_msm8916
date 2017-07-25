@@ -67,5 +67,6 @@ obj-$(CONFIG_TI_DRV2667) += ti_drv2667.o
 obj-$(CONFIG_QPNP_MISC) += qpnp-misc.o
 obj-$(CONFIG_QCOM_LIQUID_DOCK)	+= qcom_liquid_dock.o
 obj-y				+= qcom/
-obj-y				+= hardware_info.o
 obj-$(CONFIG_UID_SYS_STATS) += uid_sys_stats.o
+obj-y				+= hardware_info.o
+

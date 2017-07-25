@@ -2310,7 +2310,7 @@ static void smb1360_jeita_work_fn(struct work_struct *work)
 	temp = smb1360_get_prop_batt_temp(chip);
 
 #ifdef CONFIG_MACH_T86519A1
-	if (!high_temp_chg && temp < chip->warm_bat_decidegc) {
+	if(!high_temp_chg && temp < chip->warm_bat_decidegc) {
 		pr_info("low temp threshold, enable charging\n");
 		smb1360_charging_disable(chip, USER, 0);
 		power_supply_changed(&chip->batt_psy);
@@ -2340,7 +2340,7 @@ static void smb1360_jeita_work_fn(struct work_struct *work)
 			goto toggle_charging;
 		}
 #ifdef CONFIG_MACH_T86519A1
-		if (high_temp_chg && temp >= chip->hot_bat_decidegc) {
+		if(high_temp_chg && temp >= chip->hot_bat_decidegc) {
 			high_temp_chg = 0;
 			pr_info("high temp threshold, disable charging\n");
 			smb1360_charging_disable(chip, USER, 1);

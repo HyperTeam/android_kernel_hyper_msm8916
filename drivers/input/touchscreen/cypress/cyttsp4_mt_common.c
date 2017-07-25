@@ -710,3 +710,4 @@ struct cyttsp4_driver cyttsp4_mt_driver = {
 		.pm = &cyttsp4_mt_pm_ops,
 	},
 };
+

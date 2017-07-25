@@ -53,9 +53,9 @@ struct fan5405_chip {
 	int         vsp_vol;
 	int         safe_curr;
 	int         safe_vol;
-	bool		batt_temp_mark;
+	bool 		batt_temp_mark;
 	int        charge_stat;
-
+	
 	bool		otg_enabled;
 	bool      vbus_present;
 	/* battery status tracking */
@@ -80,8 +80,8 @@ struct fan5405_chip {
 	bool				update_t32s_waiting;
 	bool				external_change_waiting;
 	struct mutex			r_completed_lock;
-
-    /*add irq work for  vbus irq */
+	
+    /*add irq work for  vbus irq */  
 	struct work_struct irq_handler_work;
 	/* add alarm for batt info report */
 	struct wakeup_source          batt_info_alarm_wlock;
@@ -93,14 +93,14 @@ struct fan5405_chip {
 	struct power_supply     *battery_psy;
 	struct power_supply     *usb_psy;
 	struct power_supply     batt_psy;
-
+	
 	struct workqueue_struct *fan5405_wq;
 	struct delayed_work     update_t32s_work;
 	struct delayed_work     update_heartbeat_work;
 
 	struct mutex			reg_rw_lock;
 	struct mutex			enable_chg_lock;
-
+	
 	struct pinctrl *int_pinctrl;
 	struct pinctrl_state *int_state_active;
 	struct pinctrl_state *int_state_suspend;
@@ -213,11 +213,11 @@ static int __fan5405_read(struct fan5405_chip *chip, int reg,
 		dev_err(chip->dev,
 			"i2c read fail: can't read from %02x: %d\n", reg, ret);
 		return ret;
-	}
-
+	} 
+	
 	*val = ret;
 	pr_debug("Read 0x%02x=0x%02x\n", reg, *val);
-
+	
 	return 0;
 }
 
@@ -233,9 +233,9 @@ static int __fan5405_write(struct fan5405_chip *chip, int reg,
 			val, reg, ret);
 		return ret;
 	}
-
+	
 	pr_debug("Writing 0x%02x=0x%02x\n", reg, val);
-
+	
 	return 0;
 }
 
@@ -301,9 +301,9 @@ static int fan5405_set_ivbus_max(struct fan5405_chip *chip, int current_ma)
 		temp = 0x03;
 
 	val = (temp) << 6;
-
+		
 	pr_debug("Writing 0x%02x (7-6bit) = 0x%02x, current = %d\n", FAN5405_CONTROL1, val, current_ma);
-
+	
 	return fan5405_masked_write(chip, FAN5405_CONTROL1,
 				INPUT_CURR_LIMIT_MASK, val);
 
@@ -320,13 +320,13 @@ static int fan5405_set_weak_batt_vol(struct fan5405_chip *chip, int vol_mv)
 		dev_err(chip->dev, "set the weak battery threshold value error.\n");
 		return -EINVAL;
 	}
-
-
+		
+		
 	temp = (vol_mv - WEAK_BATT_VOL_MIN) / WEAK_BATT_VOL_STEP;
 	temp = (temp) << 4;
-
+		
 	pr_debug("Writing 0x%02x (5-4bit) = 0x%02x\n", FAN5405_CONTROL1, temp);
-
+	
 	return fan5405_masked_write(chip, FAN5405_CONTROL1,
 				WEAK_BATT_VOL_MASK, temp);
 
@@ -338,7 +338,7 @@ static int fan5405_enable_te(struct fan5405_chip *chip, bool enable)
 
 	if (enable)
 		temp = TERM_EN_MASK;
-
+	
 	return fan5405_masked_write(chip, FAN5405_CONTROL1,
 				TERM_EN_MASK, temp);
 }
@@ -349,7 +349,7 @@ static int fan5405_enable_chg(struct fan5405_chip *chip, bool enable)
 
 	if ( !enable )
 		temp = CAHRGE_EN_MASK;
-
+	
 	return fan5405_masked_write(chip, FAN5405_CONTROL1,
 				CAHRGE_EN_MASK, temp);
 }
@@ -361,7 +361,7 @@ static int fan5405_enable_HZ_mode(struct fan5405_chip *chip, bool enable)
 
 	if ( enable )
 		temp = HZ_MODE_MASK;
-
+	
 	return fan5405_masked_write(chip, FAN5405_CONTROL1,
 				HZ_MODE_MASK, temp);
 }
@@ -373,7 +373,7 @@ static int fan5405_enable_OPA_mode(struct fan5405_chip *chip, bool enable)
 
 	if ( enable )
 		temp = OPA_MODE_MASK;
-
+	
 	return fan5405_masked_write(chip, FAN5405_CONTROL1,
 				OPA_MODE_MASK, temp);
 }
@@ -384,18 +384,18 @@ static int fan5405_enable_OPA_mode(struct fan5405_chip *chip, bool enable)
 static int fan5405_set_chg_vol_max(struct fan5405_chip *chip, int vol_mv)
 {
 	u8 temp = 0;
-
+	
 	if (vol_mv < CHG_VOL_MIN ||vol_mv > CHG_VOL_MAX) {
 		dev_err(chip->dev, "set the weak battery threshold value error.\n");
 		return -EINVAL;
 	}
-
-
+		
+		
 	temp = (vol_mv - CHG_VOL_MIN) / CHG_VOL_STEP;
 	temp = (temp) << 2;
-
+		
 	pr_debug("Writing 0x%02x (7-2bit) = 0x%02x vol_mv=%d\n", FAN5405_OREG, temp, vol_mv);
-
+	
 	return fan5405_masked_write(chip, FAN5405_OREG,
 				OREG_MASK, temp);
 }
@@ -406,7 +406,7 @@ static int fan5405_set_otg_pl(struct fan5405_chip *chip, bool level)
 
 	if ( level )
 		temp = OTG_PL;
-
+	
 	return fan5405_masked_write(chip, FAN5405_OREG,
 				OTG_PL, temp);
 }
@@ -417,7 +417,7 @@ static int fan5405_enable_otg(struct fan5405_chip *chip, bool enable)
 
 	if ( enable )
 		temp = OTG_EN;
-
+	
 	return fan5405_masked_write(chip, FAN5405_OREG,
 				OTG_EN, temp);
 }
@@ -445,12 +445,12 @@ static int fan5405_set_iterm_ichg(struct fan5405_chip *chip, int current_ma, int
 	}
 	temp = i << 4;
 
-
+	
 	for (i = 0; i < ARRAY_SIZE(term_curr_limit) - 1; i++) {
 		if (term_curr_limit[i] >= term_ma)
 			break;
 	}
-
+	
 
 	val = temp | i ;
 
@@ -464,7 +464,7 @@ static int fan5405_set_dis_verg(struct fan5405_chip *chip, bool on)
 	if (!on) {
 		temp = DIS_VREG_MASK;
 	}
-
+	
 	pr_debug("Writing 0x%02x dis_verg = 0x%02x\n", FAN5405_SP_CHARGER, temp);
 	return fan5405_masked_write(chip, FAN5405_SP_CHARGER,
 				DIS_VREG_MASK, temp);
@@ -473,7 +473,7 @@ static int fan5405_set_dis_verg(struct fan5405_chip *chip, bool on)
 static int fan5405_set_io_level(struct fan5405_chip *chip, bool level)
 {
 	u8 temp = 0;
-
+	
 	if (level) {
 		temp = IO_LEVEL;
 	}
@@ -494,7 +494,7 @@ static int fan5405_set_vsp_vol(struct fan5405_chip *chip, int vol_mv)
 		if (special_chg_input_vol[i] <= vol_mv)
 			break;
 	}
-
+	
 	pr_debug("Writing 0x%02x (2-0bit) = 0x%02x\n", FAN5405_SP_CHARGER, i);
 	return fan5405_masked_write(chip, FAN5405_SP_CHARGER,
 				VSP_MASK, i);
@@ -522,10 +522,10 @@ static int  fan5405_set_safe_reg(struct fan5405_chip *chip, int current_ma, int 
 		safe_vol = VSAFE_MAX;
 	else
 		safe_vol = vol_mv;
-
+	
 	temp_vol = (safe_vol - VSAFE_MIN) / VSAFE_step;
 
-
+	
 	for (i = ARRAY_SIZE(isafe_limit) - 1; i >= 0; i--) {
 		if (isafe_limit[i] <= current_ma)
 			break;
@@ -544,24 +544,24 @@ static int  fan5405_set_safe_reg(struct fan5405_chip *chip, int current_ma, int 
 		if (rc < 0) {
 			dev_err(chip->dev,"fail to read safety register, rc = %d\n", rc);
 		}
-
+		
 		if (reg_val == temp)
 			break;
-
+		
 		udelay(100);
 	}
-
+	
 	pr_info("0x%02x  Writing  0x%02x :  Reading 0x%02x\n", FAN5405_SAFETY, temp, reg_val);
-
+	
 	return rc;
-
+	
 }
 
 enum fan5405_stat {
 	FAN5405_STAT_READY = 0,
 	FAN5405_STAT_CHARGING,
 	FAN5405_STAT_DONE,
-	FAN5405_STAT_FAULT,
+	FAN5405_STAT_FAULT,	
 };
 static int fan5405_get_stat(struct fan5405_chip *chip)
 {
@@ -577,7 +577,7 @@ static int fan5405_get_stat(struct fan5405_chip *chip)
 	reg_val = reg_val & mask;
 	pr_debug("register 0x00 = 0x%02x \n",reg_val);
 	return (reg_val >> 4);
-
+	
 }
 
 static int fan5405_get_ic_vender(struct fan5405_chip *chip)
@@ -594,16 +594,16 @@ static int fan5405_get_ic_vender(struct fan5405_chip *chip)
 	reg_val = reg_val >> 5;
 	pr_err("register 0x03 = 0x%02x \n",reg_val);
 	return reg_val;
-
+	
 }
 
 static void fan5405_force_en_charging(struct fan5405_chip *chip, bool enable)
 {
 	mutex_lock(&chip->enable_chg_lock);
-	if (chip->charging_disabled || chip->batt_temp_abnormal_flag) {
+	if (chip->charging_disabled || chip->batt_temp_abnormal_flag) { 
 		pr_info("charging_disabled or batt_temp_abnormal_flag disabled chg...... \n");
 		gpio_set_value(chip->en_gpio, 1);
-	} else {
+	} else {	
 		if (enable)
 			gpio_set_value(chip->en_gpio, 0);
 		else
@@ -611,7 +611,7 @@ static void fan5405_force_en_charging(struct fan5405_chip *chip, bool enable)
 	}
 	mutex_unlock(&chip->enable_chg_lock);
 	return;
-
+	
 }
 
 static int fan5405_dump_registers(struct fan5405_chip *chip)
@@ -627,7 +627,7 @@ static int fan5405_dump_registers(struct fan5405_chip *chip)
 		}
 		pr_debug("register 0x%02x = 0x%02x \n", i, reg_val);
 	}
-
+	
 	rc = fan5405_read(chip, FAN5405_MONITOR, &reg_val);
 	if (rc < 0) {
 		dev_err(chip->dev,"fail to read register : 0x%02x, rc = %d\n", FAN5405_MONITOR, rc);
@@ -656,14 +656,14 @@ static int fan5405_set_chg_reg(struct fan5405_chip *chip)
 			//return rc;
 	}
 #endif
-	//1. 1SET  REG 0x00, update T32 timer and enable STAT pin LOW when IC is charging
+	//1. 1SET  REG 0x00, update T32 timer and enable STAT pin LOW when IC is charging 
 	rc = fan5405_masked_write(chip, FAN5405_CONTROL0,
 				TMR_RST_MASK |EN_STAT_MASK, TMR_RST_MASK | EN_STAT_MASK);
 
 	//1. 2 SET REG 0x01
 	rc = fan5405_set_ivbus_max(chip, chip->set_ivbus_max); //VBUS CURRENT
 
-
+	
 	if (!chip->weak_batt_vol)
 		chip->weak_batt_vol = 3400;
 	rc = fan5405_set_weak_batt_vol(chip, chip->weak_batt_vol);
@@ -679,7 +679,7 @@ static int fan5405_set_chg_reg(struct fan5405_chip *chip)
 	rc = fan5405_set_chg_vol_max(chip, chip->chg_vol_max);
 	rc = fan5405_set_otg_pl(chip, false);
 	rc = fan5405_enable_otg(chip, false);
-
+	
 	//1. 4 SET REG 0x04
 
 	if (!chip->chg_curr_now)
@@ -687,7 +687,7 @@ static int fan5405_set_chg_reg(struct fan5405_chip *chip)
 
 	if (!chip->iterm_ma)
 		chip->iterm_ma = 100;
-
+	
 	rc = fan5405_set_iterm_ichg(chip, chip->chg_curr_now, chip->iterm_ma);
 	if (rc < 0) {
 			dev_err(chip->dev,"fail to set 0x04 register value, rc = %d\n", rc);
@@ -724,19 +724,19 @@ static void fan5405_update_t32s_work(struct work_struct *work)
 	}
 	chip->update_t32s_waiting = false;
 	mutex_unlock(&chip->r_completed_lock);
-
+	
 	chip->vbus_present = (1 == get_yl_pm8916_vbus_status());
 /*modify begin by sunxiaogang@yulong.com 2105.03.10 reset the t32s timer register of fan5405*/
         rc = fan5405_masked_write(chip, FAN5405_CONTROL0,
                                 TMR_RST_MASK |EN_STAT_MASK, TMR_RST_MASK | EN_STAT_MASK);
 /*modify end by sunxiaogang@yulong.com*/
 	fan5405_dump_registers(chip);
-	pr_debug(" %s: charge_stat = %d, vbus_present = %d, chip->charging_disabled = %d \n", __func__,
+	pr_debug(" %s: charge_stat = %d, vbus_present = %d, chip->charging_disabled = %d \n", __func__, 
 			chip->charge_stat, chip->vbus_present, chip->charging_disabled);
 	//if ((FAN5405_STAT_DONE == chip->charge_stat) || (!chip->vbus_present) || chip->charging_disabled)
 	if (!chip->vbus_present)
 		goto stop_update;
-
+	
 //update_again_later:
 	queue_delayed_work(chip->fan5405_wq, &chip->update_t32s_work,
 		msecs_to_jiffies(UPDATE_T32S_PERIOD_MS));
@@ -748,7 +748,7 @@ stop_update:
 	if (false == chip->vbus_present){
 		pr_info("vbus absent notify USB==== %s\n", __func__);
 		power_supply_set_present(chip->usb_psy, chip->vbus_present);
-	}
+	}	
 	pr_debug("=======exit ==== %s\n", __func__);
 	pm_relax(chip->dev);
 }
@@ -757,11 +757,11 @@ stop_update:
 static int check_fan5405_need_to_rechg(struct fan5405_chip *chip)
 {
 
-	pr_debug(" %s: charge_stat = %d, vbus_present = %d, chip->charging_disabled = %d \n", __func__,
+	pr_debug(" %s: charge_stat = %d, vbus_present = %d, chip->charging_disabled = %d \n", __func__, 
 			chip->charge_stat, chip->vbus_present, chip->charging_disabled);
-	if ((chip->vbus_present) && (BATT_CAPA_RECHG >= chip->batt_capa)
+	if ((chip->vbus_present) && (BATT_CAPA_RECHG >= chip->batt_capa) 
 		&& (FAN5405_STAT_CHARGING != chip->charge_stat)) {
-		if (!chip->charging_disabled && !chip->batt_temp_abnormal_flag) {
+		if (!chip->charging_disabled && !chip->batt_temp_abnormal_flag) { 	
 			fan5405_force_en_charging(chip, chip->charging_disabled);
 			msleep(500);
 			fan5405_force_en_charging(chip, !chip->charging_disabled);
@@ -777,7 +777,7 @@ static int get_batt_temp_status(struct fan5405_chip *chip)
 {
 	enum batt_temp_status b_status;
 	int batt_temp;
-
+	
 	batt_temp = chip->batt_temp;
         /*modify begin by sunxiaogang for codes platform design 2014.12.22*/
         //if (batt_temp < BATT_TEMP_TOO_COLD_THRESHOLD)  /* battery temp < 0 celsius*/
@@ -813,11 +813,11 @@ static int fan5405_temp_appropriate_charging(struct fan5405_chip *chip)
 	static bool batt_too_cold = false;
 	static bool batt_too_hot = false;
 
-
+	
 	int batt_volt_mv = 0;
 	/**/
-	int chg_current = 0;
-
+	int chg_current = 0;	
+	
 	chip->batt_temp_status = get_batt_temp_status(chip);//set buffer
 	batt_volt_mv = chip->batt_volt;
 	//batt_volt_mv = get_prop_battery_voltage_now(chip);
@@ -828,7 +828,7 @@ static int fan5405_temp_appropriate_charging(struct fan5405_chip *chip)
 	else if (batt_volt_mv > (STEP_CHG_THRESHOLD_VOLT_MV +STEP_CHG_DELTA_VOLT_MV))
 		batt_volt_low = false;
 
-	/* battery tempereture status has been changed
+	/* battery tempereture status has been changed 
 	  * or battery voltage leap over 4000mv */
 	if ((last_temp_sts != chip->batt_temp_status) || (last_volt_sts != batt_volt_low)) {
 		last_temp_sts = chip->batt_temp_status;
@@ -864,8 +864,8 @@ static int fan5405_temp_appropriate_charging(struct fan5405_chip *chip)
 				break;
 		}
 
-		chip->chg_curr_now  = min(chg_current,	chip->chg_curr_max);
-		pr_info("setting %d mA, %d, temp = %d, batt_temp_status = %d\n",chip->chg_curr_now,
+		chip->chg_curr_now  = min(chg_current, 	chip->chg_curr_max);
+		pr_info("setting %d mA, %d, temp = %d, batt_temp_status = %d\n",chip->chg_curr_now, 
 				chg_current, chip->batt_temp, chip->batt_temp_status);
 		fan5405_set_iterm_ichg(chip, chip->chg_curr_now, chip->iterm_ma);
 
@@ -878,12 +878,12 @@ static int fan5405_temp_appropriate_charging(struct fan5405_chip *chip)
 				chip->batt_temp_abnormal_flag =true;
 			} else {
 				chip->batt_temp_abnormal_flag =false;
-
+				
 			}
-
-			pr_info("batt_too_cold =  %d, batt_too_hot = %d, batt_temp_abnormal_flag = %d \n",
+			
+			pr_info("batt_too_cold =  %d, batt_too_hot = %d, batt_temp_abnormal_flag = %d \n", 
 				batt_too_cold, batt_too_hot, chip->batt_temp_abnormal_flag);
-
+			
 			fan5405_force_en_charging(chip, !chip->batt_temp_abnormal_flag);
 		}
 	}
@@ -919,15 +919,15 @@ static void fan5405_update_heartbeat_work(struct work_struct *work)
 
 	fan5405_temp_appropriate_charging(chip);
 	check_fan5405_need_to_rechg(chip);
-
+	
 	power_supply_changed(&chip->batt_psy);
-
+	
 	if(chip->batt_capa < BATT_CAPA_LOW_LEVEL)
 		update_period = UPDATE_HEART_PERIOD_FAST_MS;
 	queue_delayed_work(chip->fan5405_wq, &chip->update_heartbeat_work,
 		msecs_to_jiffies(update_period));
 
-	pr_info(" %s: charge_stat = %d, vbus_present = %d, batt_volt = %d, batt_capa =%d, batt_temp =%d\n", __func__,
+	pr_info(" %s: charge_stat = %d, vbus_present = %d, batt_volt = %d, batt_capa =%d, batt_temp =%d\n", __func__, 
 			chip->charge_stat, chip->vbus_present, chip->batt_volt, chip->batt_capa, chip->batt_temp);
 	return;
 }
@@ -941,7 +941,7 @@ static void batt_info_alarm_set(struct fan5405_chip *chip, int seconds)
 	ktime_t interval = ktime_set(seconds, 0);
 
 	pr_debug("batt_info_alarm_set has been setting. \n");
-
+	
 	alarm_start_relative(&chip->report_batt_info_alarm, interval);
 }
 
@@ -951,18 +951,18 @@ static void batt_info_alarm_work(struct work_struct *work)
 	if (!this_chip) {
 		pr_err("chip not yet initalized\n");
 	}
-
+	
 	pr_debug("enter %s . \n", __func__);
 
 	//cancel_delayed_work_sync(&chip->update_heartbeat_work);
 	//fan5405_update_heartbeat_work(&chip->update_heartbeat_work.work);
-	power_supply_changed(&chip->batt_psy);
-
+	power_supply_changed(&chip->batt_psy); 
+	
 	if (BATT_CAPA_LOW_LEVEL < chip->batt_capa )
 		batt_info_alarm_set(chip, 2*G_WAKEUP_INTERVAL);
 	else
 		batt_info_alarm_set(chip, G_WAKEUP_INTERVAL);
-
+	
 	//wake_unlock(&chip->batt_info_alarm_wlock);
 
 }
@@ -974,7 +974,7 @@ static enum alarmtimer_restart batt_info_alarm_callback(struct alarm *alarm, kti
 	pr_debug("battery alarm is coming\n");
 	__pm_wakeup_event(&chip->batt_info_alarm_wlock, 2000); /* 2 sec */
 	queue_work(chip->fan5405_wq, &chip->batt_info_alarm_work);
-
+	
 	return ALARMTIMER_NORESTART;
 }
 
@@ -984,7 +984,7 @@ static void fan5405_irq_handler_work(struct work_struct *work)
 	struct fan5405_chip *chip = container_of(work,struct fan5405_chip,irq_handler_work);
 
 
-	if(1 == get_yl_pm8916_vbus_status()) {
+	if(1 == get_yl_pm8916_vbus_status()) {   
 		pr_debug("enter vbus =1 and  start work \n");
 		fan5405_force_en_charging(chip, !chip->charging_disabled);
 		dev_err(chip->dev,"chip->en_gpio value = %d  disabled = %d \n", gpio_get_value(chip->en_gpio), chip->charging_disabled);
@@ -1002,9 +1002,9 @@ static void fan5405_irq_handler_work(struct work_struct *work)
 static irqreturn_t fan5405_stat_irq_handler(int irq, void *_chip)
 {
 //	struct fan5405_chip *chip = _chip;
-
+	
 	pr_info("fan5405 stat irq handler \n");
-
+	
 
 	return IRQ_HANDLED;
 }
@@ -1049,22 +1049,22 @@ static int fan5405_get_prop_batt_status(struct fan5405_chip *chip)
 {
 	union power_supply_propval ret = {0, };
 
-	if (chip->charging_disabled || chip->batt_temp_abnormal_flag) {
+	if (chip->charging_disabled || chip->batt_temp_abnormal_flag) { 
 		pr_info("charging disabled...... \n");
 		ret.intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		return ret.intval;
 	}
-
+	
 	chip->vbus_present = (1 == get_yl_pm8916_vbus_status());
 	if (true == chip->vbus_present && !chip->otg_enabled) {
 		if (chip->batt_capa >= 100)
 			ret.intval = POWER_SUPPLY_STATUS_FULL;
 		else
-			ret.intval = POWER_SUPPLY_STATUS_CHARGING;
+			ret.intval = POWER_SUPPLY_STATUS_CHARGING;	
 	} else {
 		ret.intval = POWER_SUPPLY_STATUS_DISCHARGING;
 	}
-#if 0
+#if 0	
 	chip->charge_stat = fan5405_get_stat(chip);
 
 	if (FAN5405_STAT_DONE == chip->charge_stat)
@@ -1218,12 +1218,12 @@ static int fan5405_get_prop_batt_capa(struct fan5405_chip *chip)
         return chip->batt_capa;
 }
 
-static int fan5405_battery_get_property(struct power_supply *psy,
+static int fan5405_battery_get_property(struct power_supply *psy, 
 										enum power_supply_property prop,
 										union power_supply_propval *val)
 {
 	struct fan5405_chip *chip = container_of(psy, struct fan5405_chip, batt_psy);
-
+	
 	switch (prop) {
 		case POWER_SUPPLY_PROP_HEALTH:
 			val->intval = fan5405_get_prop_batt_health(chip);
@@ -1233,7 +1233,7 @@ static int fan5405_battery_get_property(struct power_supply *psy,
 			break;
 		case POWER_SUPPLY_PROP_PRESENT:
 			val->intval = fan5405_get_prop_batt_present(chip);
-			break;
+			break;	
 		case POWER_SUPPLY_PROP_CAPACITY:
 			val->intval = fan5405_get_prop_batt_capa(chip);
 			break;
@@ -1268,10 +1268,10 @@ static int fan5405_battery_get_property(struct power_supply *psy,
 		default:
 			return -EINVAL;
 	}
-
+	
 	return 0;
 }
-
+								
 static int fan5405_battery_is_writeable(struct power_supply *psy,
 				       enum power_supply_property prop)
 {
@@ -1312,7 +1312,7 @@ static int fan5405_battery_set_property(struct power_supply *psy,
 
 	switch (prop) {
 	case POWER_SUPPLY_PROP_CHARGING_ENABLED:
-		chip->charging_disabled = !(val->intval);
+		chip->charging_disabled = !(val->intval); 	
 		fan5405_force_en_charging(chip, !chip->charging_disabled);
 		pr_info("chip->en_gpio value = %d  disabled = %d \n", gpio_get_value(chip->en_gpio), chip->charging_disabled);
 		break;
@@ -1336,7 +1336,7 @@ static void fan5405_external_power_changed(struct power_supply *psy)
 				struct fan5405_chip, batt_psy);
 	union power_supply_propval prop = {0,};
 	int rc;
-
+	
 	if (!chip) {
 		dev_err(chip->dev,"=======no\n");
 		return;
@@ -1367,14 +1367,14 @@ static void fan5405_external_power_changed(struct power_supply *psy)
 
 	power_supply_changed(&chip->batt_psy);
 	pr_info("current_limit = %d\n", chip->set_ivbus_max);
-
+	
 }
 
 static void fan5405_set_charged(struct power_supply *psy)
 {
 	struct fan5405_chip *chip = container_of(psy,
 				struct fan5405_chip, batt_psy);
-
+	
 	__pm_wakeup_event(&chip->wait_report_info_lock, 2000); /* 2 sec */
 	queue_work(chip->fan5405_wq, &chip->irq_handler_work);
 }
@@ -1383,7 +1383,7 @@ static int fan5405_parse_dt(struct fan5405_chip *chip)
 {
 	int rc;
 	struct device_node *node = chip->dev->of_node;
-
+	
 	if (!node) {
 		dev_err(chip->dev, "device tree info. missing \n");
 		return -EINVAL;
@@ -1395,7 +1395,7 @@ static int fan5405_parse_dt(struct fan5405_chip *chip)
 		chip->battery_psy_name = "yl_adc_battery";
 		rc = 0;
 	}
-
+	
 
 	rc = of_property_read_string(node, "yl,batt-psy-name", &chip->batt_psy_name);
 	if (rc){
@@ -1403,19 +1403,19 @@ static int fan5405_parse_dt(struct fan5405_chip *chip)
 		chip->batt_psy_name = "battery";
 		rc = 0;
 	}
-
+	
 	chip->en_gpio = of_get_named_gpio(node, "fan5405,en-gpio", 0);
 	if (!gpio_is_valid(chip->en_gpio)) {
 		dev_err(chip->dev,"chip->en_gpio = %dis invalid! \n", chip->en_gpio);
 		return -EINVAL;
 	}
-
+	
 	chip->irq_gpio = of_get_named_gpio(node, "fan5405,irq-gpio", 0);
 	if (!gpio_is_valid(chip->irq_gpio)) {
 		dev_err(chip->dev,"chip->irq_gpio = %dis invalid! \n", chip->irq_gpio);
 		return -EINVAL;
 	}
-
+	
 	rc = of_property_read_u32(node, "yl,max-vbus-current-mA", &chip->vbus_curr_max);
 	if (rc < 0)
 		return -EINVAL;
@@ -1432,7 +1432,7 @@ static int fan5405_parse_dt(struct fan5405_chip *chip)
 	if (rc < 0)
 		return -EINVAL;
 	chip->chg_curr_now = chip->chg_curr_max;
-
+	
 	rc = of_property_read_u32(node, "yl,term-current-mA", &chip->iterm_ma);
 	if (rc < 0)
 		return -EINVAL;
@@ -1448,7 +1448,7 @@ static int fan5405_parse_dt(struct fan5405_chip *chip)
 	rc = of_property_read_u32(node, "yl,safety-voltage-mv", &chip->safe_vol);
 	if (rc < 0)
 		return -EINVAL;
-
+	
 	rc = of_property_read_u32(node, "yl,batt-temp-hot", &chip->batt_temp_hot);
 	if (rc < 0) {
 		dev_err(chip->dev, "Failed to read batt-temp-hot\n");
@@ -1529,14 +1529,14 @@ static int fan5405_int_pinctrl_init(struct fan5405_chip *chip)
 		chip->int_pinctrl = NULL;
 		return retval;
 	}
-
+	
 	retval = pinctrl_select_state(chip->int_pinctrl, chip->int_state_active);
 	if (retval) {
 		dev_err(chip->dev,
 				"can not set pins\n");
 		return retval;
 	}
-
+	
 	return 0;
 }
 
@@ -1573,23 +1573,23 @@ static int fan5405_probe(struct i2c_client *client, const struct i2c_device_id *
 	struct power_supply *usb_psy;
 	struct power_supply *battery_psy;
 	union power_supply_propval ret = {0,};
-
+	
 
 	chip = devm_kzalloc(&client->dev, sizeof(struct fan5405_chip), GFP_KERNEL);
 	if (!chip) {
 		dev_err(&client->dev, "Unable to allocate memory\n");
 		return -ENOMEM;
 	}
-
+	
 	chip->client = client;
 	chip->dev = &client->dev;
-
+	
 	rc = fan5405_parse_dt(chip);
 	if (rc < 0) {
 		dev_err(&client->dev, "Unable to parse DT nodes\n");
 		return rc;
 	}
-
+	
 	device_init_wakeup(chip->dev, 1);
 	i2c_set_clientdata(client,chip);
 
@@ -1606,14 +1606,14 @@ static int fan5405_probe(struct i2c_client *client, const struct i2c_device_id *
 	if(FAN5405_IC_VENDER != fan5405_get_ic_vender(chip)){
 		dev_err(&client->dev, "this IC is not FAN5405, exit fan5405 probe \n");
 		return -EINVAL;
-	}
+	} 
 	/* 1. set charge safety register */
 	if (!chip->safe_curr)
 		chip->safe_curr = 1500;
 
 	if (!chip->safe_vol)
 		chip->safe_vol = 4230;
-
+	
 	rc = fan5405_set_safe_reg(chip, chip->safe_curr, chip->safe_vol);
 	if (rc < 0) {
 			dev_err(chip->dev,"fail to set  charge safety register, rc = %d\n", rc);
@@ -1644,7 +1644,7 @@ static int fan5405_probe(struct i2c_client *client, const struct i2c_device_id *
 	wakeup_source_init(&chip->wait_report_info_lock, "fan5405-report-info");
         /*add by sunxiaogang@yulong.com no suspend on charging 2014.12.09*/
 	wakeup_source_init(&chip->charging_wlock, "fan5405-charging-wlock");
-
+	
 	/* register battery power supply */
 	chip->batt_psy.name		= chip->batt_psy_name;
 	chip->batt_psy.type		= POWER_SUPPLY_TYPE_BATTERY;
@@ -1658,7 +1658,7 @@ static int fan5405_probe(struct i2c_client *client, const struct i2c_device_id *
 					ARRAY_SIZE(fan5405_batt_supplied_to);
 	chip->batt_psy.external_power_changed = fan5405_external_power_changed;
 	chip->batt_psy.set_charged = fan5405_set_charged;
-
+	
 	rc = power_supply_register(chip->dev, &chip->batt_psy);
 	if (rc < 0) {
 		dev_err(&client->dev,
@@ -1671,7 +1671,7 @@ static int fan5405_probe(struct i2c_client *client, const struct i2c_device_id *
 		dev_err(chip->dev, "create workqueue faild.\n");
 		return -ENOMEM;
 	}
-
+	
 	INIT_DELAYED_WORK(&chip->update_t32s_work, fan5405_update_t32s_work);
 	INIT_DELAYED_WORK(&chip->update_heartbeat_work, fan5405_update_heartbeat_work);
 	INIT_WORK(&chip->irq_handler_work,fan5405_irq_handler_work);
@@ -1688,12 +1688,12 @@ static int fan5405_probe(struct i2c_client *client, const struct i2c_device_id *
 
 	if (gpio_is_valid(chip->en_gpio)) {
 		rc = gpio_request(chip->en_gpio, "fan_enable");
-		if (rc) {
+		if (rc) {		
 			dev_err(chip->dev,"unable to request chip->en_gpio = %d ! \n", chip->en_gpio);
 			goto unregister_batt_psy;
 		}
 		rc = gpio_direction_output(chip->en_gpio, 0);
-		if (rc) {
+		if (rc) {		
 			dev_err(chip->dev,"unable to set direction for chip->en_gpio = %d ! \n", chip->en_gpio);
 			goto unregister_batt_psy;
 		}
@@ -1716,18 +1716,18 @@ static int fan5405_probe(struct i2c_client *client, const struct i2c_device_id *
 	this_chip = chip;
 
 	batt_info_alarm_set(chip, G_WAKEUP_INTERVAL);
-
+	
 	//dev_info(&client->dev, "success ++++++==== fan5405_probe\n");
 	return 0;
 
 unregister_batt_psy:
 	power_supply_unregister(&chip->batt_psy);
-	gpio_free(chip->en_gpio);
+	gpio_free(chip->en_gpio);	
 fail_hw_init:
 	wakeup_source_trash(&chip->wait_report_info_lock);
         /*add by sunxiaogang@yulong.com no suspend on charging 2014.12.09*/
 	wakeup_source_trash(&chip->charging_wlock);
-
+		
 	return rc;
 }
 
@@ -1748,7 +1748,7 @@ static int fan5405_remove(struct i2c_client *client)
 	wakeup_source_trash(&chip->batt_info_alarm_wlock);
 	gpio_free(chip->en_gpio);
 	destroy_workqueue(chip->fan5405_wq);
-
+	
 	return rc;
 }
 
@@ -1757,12 +1757,12 @@ static int fan5405_suspend(struct device *dev)
 	int rc = 0;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct fan5405_chip *chip = i2c_get_clientdata(client);
-
+	
 	/* add active */
 	mutex_lock(&chip->r_completed_lock);
 	chip->resume_completed = false;
 	mutex_unlock(&chip->r_completed_lock);
-
+	
 	return rc;
 }
 
@@ -1771,7 +1771,7 @@ static int fan5405_suspend_noirq(struct device *dev)
 //	int rc;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct fan5405_chip *chip = i2c_get_clientdata(client);
-
+	
 	if (chip->update_heartbeat_waiting) {
 		pr_err_ratelimited("Aborting suspend, an update_heartbeat_waiting while suspending\n");
 		return -EBUSY;
@@ -1786,7 +1786,7 @@ static int fan5405_suspend_noirq(struct device *dev)
 		pr_err_ratelimited("Aborting suspend, an external_change_waiting while suspending\n");
 		return -EBUSY;
 	}
-
+	
 	return 0;
 }
 
@@ -1814,7 +1814,7 @@ static int fan5405_resume(struct device *dev)
 		external_change_again = true;
 	}
 	mutex_unlock(&chip->r_completed_lock);
-
+	
 	if (update_heartbeat_again) {
 		cancel_delayed_work_sync(&chip->update_heartbeat_work);
 		fan5405_update_heartbeat_work(&chip->update_heartbeat_work.work);
@@ -1829,7 +1829,7 @@ static int fan5405_resume(struct device *dev)
 	if (external_change_again) {
 		fan5405_external_power_changed(&chip->batt_psy);
 	}
-
+	
 	return rc;
 }
 

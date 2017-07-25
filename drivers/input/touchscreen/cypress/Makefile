@@ -59,3 +59,4 @@ CFLAGS_cyttsp4_debug.o += -DVERBOSE_DEBUG
 CFLAGS_cyttsp4_devtree.o += -DVERBOSE_DEBUG
 CFLAGS_cyttsp4_platform.o += -DVERBOSE_DEBUG
 endif
+

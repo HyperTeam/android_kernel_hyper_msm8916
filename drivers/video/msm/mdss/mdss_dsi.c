@@ -1383,17 +1383,9 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 		if (ctrl_pdata->on_cmds.link_state == DSI_HS_MODE)
 			rc = mdss_dsi_unblank(pdata);
 		pdata->panel_info.esd_rdy = true;
-<<<<<<< HEAD
-<<<<<<< HEAD
 #ifdef CONFIG_MACH_WT86518
 		Packet_PLAG=0;
-=======
-#ifdef CONFIG_STATE_NOTIFIER
-		state_resume();
->>>>>>> f1cc8ea... state_notifier: added related track into mdss events
 #endif
-=======
->>>>>>> 666e541... msm: mdss: Optimize state_notifier entry
 		break;
 	case MDSS_EVENT_BLANK:
 		power_state = (int) (unsigned long) arg;

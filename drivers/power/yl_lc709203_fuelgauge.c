@@ -8,8 +8,8 @@
  * only version 2 as published by the Free Software Foundation.
  *
  * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of 
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
  * GUN General Public License for more details.
  */
 #define pr_fmt(fmt)      "LC709203:%s:" fmt, __func__
@@ -57,7 +57,7 @@ struct spec_battery_data {
 	int                  battery_appli;
 	const char	*battery_type;
 };
-
+	
 struct lc709203_battery_data {
 	int      rpull_up_kohm;
 	int      vref_batt_id_uv;
@@ -72,13 +72,13 @@ struct lc709203_chip {
 	// struct mutex                    i2c_mutex;
 	struct  delayed_work		hw_config;
 	struct qpnp_vadc_chip		*vadc_dev;
-
-	struct lc709203_battery_data      *battery_data;
+	
+	struct lc709203_battery_data      *battery_data;      
 
 	/* add for i2c error when resume*/
 	bool				resume_completed;
 	struct mutex			r_completed_lock;
-
+	
 	int soc_high_scaled;
 	int soc_low_scaled;
 
@@ -249,7 +249,7 @@ static s16 lc709203_read_reg(u8 reg, struct lc709203_chip *chip)
 	}
 	data[0] = (val&0x00FF);
 	data[1] = (val&0xFF00)>>8;
-	val_final = (data[1]<<8)|data[0];
+	val_final = (data[1]<<8)|data[0];	
 	pr_debug("read reg = 0x%02X.val = 0x%02X.\n", reg , val_final);
 
 	return val_final;
@@ -260,7 +260,7 @@ static void lc709203_reg_write(u8 reg,int subcmd,struct lc709203_chip *chip	)
 	err = lc709203_write_i2c(reg, (unsigned short)subcmd, chip);
 	if(err < 0)
 	{
-		pr_err("reg = 0x%02X write fail \n", reg );
+		pr_err("reg = 0x%02X write fail \n", reg );	
 	}else
 		pr_debug("write reg = 0x%02X.val = 0x%02X.  success \n", reg , subcmd);
 
@@ -268,7 +268,7 @@ static void lc709203_reg_write(u8 reg,int subcmd,struct lc709203_chip *chip	)
 
 /*
  * write the battery temperature to the lc709203 chip
- *
+ * 
  */
 static void update_batt_temp_to_lc709203(struct lc709203_chip *chip, int batt_temp)
 {
@@ -282,7 +282,7 @@ static void update_batt_temp_to_lc709203(struct lc709203_chip *chip, int batt_te
 
 /*
  * Return the battery temperature in tenths of degree Celsius
- *
+ * 
  */
 static int lc709203_batt_temperature(struct lc709203_chip *chip)
 {
@@ -292,24 +292,24 @@ static int lc709203_batt_temperature(struct lc709203_chip *chip)
 		pr_err("this_chip is unavailable\n");
 		return -EINVAL;
 	}
-
+	
 	rc = qpnp_vadc_read(chip->vadc_dev, LR_MUX1_BATT_THERM, &results);
 	if (rc) {
 		pr_err("unable to read batt temp rc = %d \n", rc);
 		return 0;
 	}
-
+	
 	pr_debug("read batt temp= %lld \n", results.physical);
-	return (int)results.physical;
+	return (int)results.physical;	
 }
 
 /*
  * Return the battery Voltage in milivolts
- *
+ * 
  */
 static int lc709203_batt_voltage(struct lc709203_chip *chip)
 {
-	int  m_volt;
+	int  m_volt;		
 
 	m_volt = lc709203_read_reg(LC709203_REG_CELL_VOLT, chip);
 	pr_debug(": batt volt %d\n", m_volt);
@@ -328,7 +328,7 @@ static int bound_soc(int soc)
 static int soc_scaled(struct lc709203_chip *chip, int soc)
 {
 	int new_rsoc = 0;
-	pr_debug("soc_high_scaled = %d soc_low_scaled = %d \n", chip->soc_high_scaled, chip->soc_low_scaled);
+	pr_debug("soc_high_scaled = %d soc_low_scaled = %d \n", chip->soc_high_scaled, chip->soc_low_scaled);    
     soc = 10*soc;
     if(soc >= chip->soc_high_scaled)
 		return 100;
@@ -336,7 +336,7 @@ static int soc_scaled(struct lc709203_chip *chip, int soc)
 		return 0;
 
 	new_rsoc = 1000*(soc - chip->soc_low_scaled)/(chip->soc_high_scaled - chip->soc_low_scaled);
-
+	
 	if((new_rsoc%10) >= 5){
 		new_rsoc = new_rsoc/10 + 1;
 	}else{
@@ -346,14 +346,14 @@ static int soc_scaled(struct lc709203_chip *chip, int soc)
 }
 /*
  * Return the battery capacity in d%
- *
+ * 
  */
 static int lc709203_batt_capacity(struct lc709203_chip *chip)
 {
 	int capa = 0;
 	int new_rsoc = 0;
 
-	capa = lc709203_read_reg(LC709203_REG_RSOC, chip);
+	capa = lc709203_read_reg(LC709203_REG_RSOC, chip);	
 	pr_debug("capa = %d  \n", capa);
 	capa = bound_soc(capa);
 	new_rsoc = soc_scaled(chip, capa);
@@ -374,13 +374,13 @@ static enum power_supply_property lc709203_batt_properties[] = {
 	POWER_SUPPLY_PROP_TEMP,
 };
 
-static int lc709203_batt_get_property(struct power_supply *psy,
+static int lc709203_batt_get_property(struct power_supply *psy, 
 		enum power_supply_property prop,
 		union power_supply_propval *val)
 {
 	struct lc709203_chip *chip = container_of(psy, struct lc709203_chip, lc709203_batt_psy);
 	int batt_temp = 0;
-
+	
 	mutex_lock(&chip->r_completed_lock);
 	if (!chip->resume_completed) {
 		dev_dbg(chip->dev, "read LC709203 before device-resume\n");
@@ -388,11 +388,11 @@ static int lc709203_batt_get_property(struct power_supply *psy,
 		return 0;
 	}
 	mutex_unlock(&chip->r_completed_lock);
-
+	
 	switch (prop) {
 		case POWER_SUPPLY_PROP_PRESENT:
 			val->intval = 1;
-			break;
+			break;	
 		case POWER_SUPPLY_PROP_CAPACITY:
 			batt_temp = lc709203_batt_temperature(chip);
 			update_batt_temp_to_lc709203(chip,batt_temp);
@@ -447,7 +447,7 @@ static int lc709203_batt_set_property(struct power_supply *psy,
 			break;
 		case POWER_SUPPLY_PROP_SYSTEM_TEMP_LEVEL:
 			break;
-		case POWER_SUPPLY_PROP_CHARGE_FULL:
+		case POWER_SUPPLY_PROP_CHARGE_FULL:	
 			break;
 		default:
 			return -EINVAL;
@@ -513,7 +513,7 @@ static int set_battery_data(struct lc709203_chip *chip)
 			pr_err("No available batterydata\n");
 			return -EINVAL;
 	}
-
+	
 	battery_id_uv = read_battery_id_uv(chip);
 	if (battery_id_uv < 0) {
 		pr_err("cannot read battery id err = %lld\n", battery_id_uv);
@@ -531,13 +531,13 @@ static int set_battery_data(struct lc709203_chip *chip)
 		sizeof(struct spec_battery_data), GFP_KERNEL);
 
 	rc = of_property_read_u32(batt_node, "yl,rpull-up-kohm", &batt_data->rpull_up_kohm);
-	if (rc){
+	if (rc){ 
 		dev_err(chip->dev, "Failed to read battery rpull_up_kohm\n");
 		return -EINVAL;
 	}
 
 	rc = of_property_read_u32(batt_node, "yl,vref-batt-id-uv", &batt_data->vref_batt_id_uv);
-	if (rc){
+	if (rc){ 
 		dev_err(chip->dev, "Failed to read battery vref_batt_id_uv\n");
 		return -EINVAL;
 	}
@@ -553,10 +553,10 @@ static int set_battery_data(struct lc709203_chip *chip)
 	best_delta = 0;
 	best_id_kohm = 0;
 	batt_num = 0;
-
+	
 	for_each_child_of_node(batt_node, node) {
 		rc = of_property_read_u32(node, "yl,batt-id-kohm", &batt_ids.kohm[batt_num]);
-		if (rc){
+		if (rc){ 
 			dev_err(chip->dev, "Failed to read battery batt_id_kohm\n");
 			return -EINVAL;
 		}
@@ -567,12 +567,12 @@ static int set_battery_data(struct lc709203_chip *chip)
 			break;
 		}
 		batt_ids.num = batt_num;
-
+		
 		if (LC709203_MAX_BATT_ID_NUM < batt_ids.num) {
 			pr_err("Too many battery id resistors\n");
 			break;
 		}
-
+		
 		for (i = 0; i < batt_ids.num; i++) {
 			delta = abs(batt_ids.kohm[i] - batt_id_kohm);
 			if (delta < best_delta || !best_batt_node) {
@@ -590,36 +590,36 @@ static int set_battery_data(struct lc709203_chip *chip)
 
 	rc = of_property_read_string(best_batt_node, "yl,battery-type",
 							&batt_data->spec_battery_data->battery_type);
-	if (rc){
+	if (rc){ 
 		dev_err(chip->dev, "Failed to read battery battery_type\n");
 		return -EINVAL;
 	}
 
 	rc = of_property_read_u32(best_batt_node, "yl,batt-id-kohm", &batt_data->spec_battery_data->batt_id_kohm);
-	if (rc){
+	if (rc){ 
 		dev_err(chip->dev, "Failed to read battery batt_id_kohm\n");
 		return -EINVAL;
 	}
 
 	rc = of_property_read_u32(best_batt_node, "yl,batt-full-capa", &batt_data->spec_battery_data->batt_full_capa);
-	if (rc){
+	if (rc){ 
 		dev_err(chip->dev, "Failed to read battery batt_full_capa\n");
 		batt_data->spec_battery_data->batt_full_capa = 2500;
 		rc = 0;
 	}
 
 	rc = of_property_read_u32(best_batt_node, "yl,battery-appli", &batt_data->spec_battery_data->battery_appli);
-	if (rc){
+	if (rc){ 
 		dev_err(chip->dev, "Failed to read battery battery_appli\n");
 		batt_data->spec_battery_data->battery_appli = 0x0025;
 		rc = 0;
 	}
 
-	pr_info("battery %s loaded , appli:0x%04X \n", batt_data->spec_battery_data->battery_type,
-		batt_data->spec_battery_data->battery_appli);
+	pr_info("battery %s loaded , appli:0x%04X \n", batt_data->spec_battery_data->battery_type, 
+		batt_data->spec_battery_data->battery_appli);	
 
 	chip->battery_data = batt_data;
-
+	
 	return 0;
 }
 
@@ -634,21 +634,21 @@ static int lc709203_parse_dt(struct lc709203_chip *chip)
 	}
 
 	rc = of_property_read_string(node, "yl,lc709203-psy-name", &chip->lc709203_psy_name);
-	if (rc) {
+	if (rc) { 
 		dev_err(chip->dev, "Failed to read lc709203_psy_name\n");
 		chip->lc709203_psy_name = "lc709203_battery";
 		rc = 0;
 	}
 
 	rc = of_property_read_string(node, "yl,charge-psy-name", &chip->charge_psy_name);
-	if (rc){
+	if (rc){ 
 		dev_err(chip->dev, "Failed to read charge_psy_name\n");
 		chip->charge_psy_name = "battery";
 		rc = 0;
 	}
 
 	rc = of_property_read_u32(node, "yl,soc-high-scaled", &chip->soc_high_scaled);
-	if (rc){
+	if (rc){ 
 		dev_err(chip->dev, "Failed to read soc_high_scaled\n");
 		chip->soc_high_scaled = 100;
 		rc = 0;
@@ -656,7 +656,7 @@ static int lc709203_parse_dt(struct lc709203_chip *chip)
 
 
 	rc = of_property_read_u32(node, "yl,soc-low-scaled", &chip->soc_low_scaled);
-	if (rc){
+	if (rc){ 
 		dev_err(chip->dev, "Failed to read soc_low_scaled\n");
 		chip->soc_low_scaled = 0;
 		rc = 0;
@@ -733,7 +733,7 @@ static ssize_t fuel_gauge_capacity_show(struct device_driver *drv, char *buf)
 		return -22;
 	}
 	//val_final = (val & 0x0000) >>16;
-	//val_final = ((val_final & 0xFF00)>>8) | ((val_final & 0x00FF) << 8);
+	//val_final = ((val_final & 0xFF00)>>8) | ((val_final & 0x00FF) << 8); 
 	data[0] = (val&0x00FF);
 	data[1] = (val&0xFF00)>>8;
 	val_final = (data[1]<<8)|data[0];
@@ -774,17 +774,17 @@ static int lc709203_fuelgauger_probe(struct i2c_client *client,
 	lc709203_reg_write(LC709203_REG_PW_Mode,0x0001,chip);
 	udelay(100);
 	lc709203_reg_write(LC709203_REG_PW_Mode,0x0001,chip);
-
+	
 	chip->resume_completed = true;
 	mutex_init(&chip->r_completed_lock);
 	chip->vadc_dev = qpnp_get_vadc(chip->dev, "lc");
 	if (IS_ERR(chip->vadc_dev)) {
-		retval = PTR_ERR(chip->vadc_dev);
+		retval = PTR_ERR(chip->vadc_dev); 
 		pr_info("vadc_dev prop missing retval = %d \n", retval);
 		kfree(chip);
 		return retval;
 	}
-
+	
 	lc709203_hw_init_by_battery(chip);
 
 	/* register lc709203 battery power supply */
@@ -823,7 +823,7 @@ static int lc709203_fuelgauger_remove(struct i2c_client *client)
 	   mutex_lock(&battery_mutex);
 	   idr_remove(&battery_id, chip->id);
 	   mutex_unlock(&battery_mutex);
-	 */
+	 */	
 	mutex_destroy(&chip->r_completed_lock);
 
 	kfree(chip);
@@ -841,12 +841,12 @@ static int lc709203_suspend(struct device *dev)
 	int rc = 0;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lc709203_chip *chip = i2c_get_clientdata(client);
-
+	
 	/* add active */
 	mutex_lock(&chip->r_completed_lock);
 	chip->resume_completed = false;
 	mutex_unlock(&chip->r_completed_lock);
-
+	
 	return rc;
 }
 
@@ -921,3 +921,4 @@ module_exit(lc709203_fuelgauger_exit);
 MODULE_LICENSE("GPL v1");
 MODULE_AUTHOR("YULONG INC");
 MODULE_DESCRIPTION("LC709203 FUELGAUGER IC DRIVER FOR YULONG Y1");
+

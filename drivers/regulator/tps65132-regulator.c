@@ -179,7 +179,6 @@ static int tps65132_regulator_get_voltage(struct regulator_dev *rdev)
 			TPS65132_VOLTAGE_STEP + TPS65132_VOLTAGE_MIN;
 	}
 #endif
-
 	return vreg->curr_uV;
 }
 

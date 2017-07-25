@@ -213,7 +213,7 @@ static int yl_pm8916_vbus_is_usb_chg_plugged_in(struct yl_pm8916_vbus_chip *chip
 }
 
 #if TW_GLOVE_SWITCH
-u32 yl_is_charger_in = 0;
+u32 yl_is_charger_in = 0; 
 static struct delayed_work gtp_charger_status_check_work;
 static struct workqueue_struct * gtp_charger_status_check_workqueue = NULL;
 static void gtp_charger_status_check_func(struct work_struct *);
@@ -227,7 +227,7 @@ EXPORT_SYMBOL(yl_get_charger_status);
 
 static void gtp_charger_status_check_func(struct work_struct *work)
 {
-    yl_chg_status_changed();
+    yl_chg_status_changed(); 
 }
 #endif
 int get_yl_pm8916_vbus_status(void)
@@ -237,7 +237,7 @@ int get_yl_pm8916_vbus_status(void)
 		//return -EINVAL;
 		return 1;
 	}
-
+	
 	return yl_pm8916_vbus_is_usb_chg_plugged_in(this_chip);
 }
 EXPORT_SYMBOL(get_yl_pm8916_vbus_status);
@@ -252,16 +252,16 @@ int get_yl_pm8916_batt_mvol(void)
 		//return -EINVAL;
 		return BATT_MVOLT_DEFAULT;
 	}
-
+	
 	rc = qpnp_vadc_read(this_chip->vadc_dev, VBAT_SNS, &results);
 	if (rc) {
 		pr_err("unable to read vbat rc = %d battery voltage use default value 3800mV\n", rc);
 		//return 0;
 		return BATT_MVOLT_DEFAULT;
 	}
-
+	
 	pr_debug("read vbat= %lld \n", results.physical);
-	return (int)results.physical/1000;
+	return (int)results.physical/1000;	
 
 }
 
@@ -273,15 +273,15 @@ int get_yl_pm8916_batt_temp(void)
 		pr_err("this_chip is unavailable\n");
 		return -EINVAL;
 	}
-
+	
 	rc = qpnp_vadc_read(this_chip->vadc_dev, LR_MUX1_BATT_THERM, &results);
 	if (rc) {
 		pr_err("unable to read batt temp rc = %d \n", rc);
 		return 0;
 	}
-
+	
 	pr_debug("read batt temp= %lld \n", results.physical);
-	return (int)results.physical;
+	return (int)results.physical;	
 
 }
 
@@ -316,13 +316,13 @@ int is_battery_present(void)
 int yl_backup_ocv_soc(int ocv_uv, int soc)
 {
 	int rc;
-
+	
 	if (!this_chip) {
 		pr_err("this_chip is unavailable\n");
 		return -EINVAL;
 	}
 
-	rc = __qpnp_lbc_write(this_chip->spmi, this_chip->base + BMS_OCV_REG,
+	rc = __qpnp_lbc_write(this_chip->spmi, this_chip->base + BMS_OCV_REG, 
 				(u8 *)&ocv_uv, 2);
 	if(rc)
 		pr_err("Unable to backup OCV rc=%d\n", rc);
@@ -347,7 +347,7 @@ int yl_read_shutdown_ocv_soc(int *ocv_uv, int *soc)
 		pr_err("this_chip is unavailable\n");
 		return -EINVAL;
 	}
-
+	
 	rc = __qpnp_lbc_read(this_chip->spmi, this_chip->base + BMS_OCV_REG,
 				(u8 *)&stored_ocv, 2);
 	if (rc) {
@@ -372,14 +372,14 @@ int yl_read_shutdown_ocv_soc(int *ocv_uv, int *soc)
 	 * 0x00 and 0xFF.
 	 */
 	rc = __qpnp_lbc_read(this_chip->spmi, this_chip->base + BMS_SOC_REG,
-				&stored_soc, 1);
-
+	 			&stored_soc, 1);
+	
 	if (rc) {
 			pr_err("failed to read addr = %d %d\n",
 					this_chip->base + BMS_SOC_REG, rc);
 			return -EINVAL;
 		}
-
+	
 		if (!stored_soc || stored_soc == SOC_INVALID) {
 			*soc = SOC_INVALID;
 			*ocv_uv = OCV_INVALID;
@@ -387,7 +387,7 @@ int yl_read_shutdown_ocv_soc(int *ocv_uv, int *soc)
 		} else {
 			*soc = (stored_soc >> 1) - 1;
 		}
-
+	
 		pr_debug("shutdown_ocv=%d shutdown_soc=%d\n",
 				*ocv_uv, *soc);
 
@@ -403,15 +403,15 @@ int read_yl_pm8916_batt_id(void)
 		pr_err("this_chip is unavailable\n");
 		return -EINVAL;
 	}
-
+	
 	rc = qpnp_vadc_read(this_chip->vadc_dev, LR_MUX2_BAT_ID, &results);
 	if (rc) {
 		pr_err("unable to read batt id rc = %d \n", rc);
 		return 0;
 	}
-
+	
 	pr_debug("read batt id= %lld \n", results.physical);
-	return (int)results.physical;
+	return (int)results.physical;	
 
 }
 
@@ -445,18 +445,18 @@ static irqreturn_t yl_pm8916_vbus_usbin_valid_irq_handler(int irq, void *_chip)
 
     #if TW_GLOVE_SWITCH
 	yl_is_charger_in = (u32)usb_present;
-	queue_delayed_work(gtp_charger_status_check_workqueue, &gtp_charger_status_check_work, msecs_to_jiffies(10));
+	queue_delayed_work(gtp_charger_status_check_workqueue, &gtp_charger_status_check_work, msecs_to_jiffies(10)); 
 	#endif
 	if (chip->usb_present ^ usb_present) {
 		chip->usb_present = usb_present;
 		pr_err("%s[%d] Updating usb_psy PRESENT property\n",__func__, __LINE__);
 		power_supply_set_present(chip->usb_psy, chip->usb_present);
-
+		
 		//if (chip->usb_present) {
 			power_supply_set_battery_charged(chip->batt_psy);
 		//}
 	}
-
+	
 	return IRQ_HANDLED;
 }
 
@@ -507,7 +507,7 @@ static int yl_pm8916_vbus_request_irqs(struct yl_pm8916_vbus_chip *chip)
 	SPMI_REQUEST_IRQ(chip, BATT_PRES, rc, batt_pres, 1,
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING
 			| IRQF_ONESHOT, 1);
-
+	
 
 	SPMI_REQUEST_IRQ(chip, USBIN_VALID, rc, usbin_valid, 0,
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING, 1);
@@ -550,7 +550,7 @@ static void determine_initial_status(struct yl_pm8916_vbus_chip *chip)
 	 */
 	if (chip->usb_present)
 		power_supply_set_online(chip->usb_psy, 1);
-
+	
 	/* if check the USB is present, need to inform charge */
 	if (chip->usb_present) {
 		power_supply_set_battery_charged(chip->batt_psy);
@@ -606,7 +606,7 @@ static int yl_pm8916_vbus_probe(struct spmi_device *spmi)
 	chip->spmi = spmi;
 	dev_set_drvdata(&spmi->dev, chip);
 	device_init_wakeup(&spmi->dev, 1);
-
+	
 	chip->vadc_dev = qpnp_get_vadc(chip->dev, "chg");
 	if (IS_ERR(chip->vadc_dev)) {
 		rc = PTR_ERR(chip->vadc_dev);
@@ -649,7 +649,7 @@ static int yl_pm8916_vbus_probe(struct spmi_device *spmi)
 		case LBC_USB_PTH_SUBTYPE:
 			pr_err("USB subtype=0x%x\n", subtype);
 			chip->usb_chgpth_base = resource->start;
-
+			
 			rc = yl_pm8916_vbus_get_irqs(chip, subtype, spmi_resource);
 			if (rc)
 				goto fail_chg_enable;
@@ -679,8 +679,8 @@ static int yl_pm8916_vbus_probe(struct spmi_device *spmi)
 
 	#if TW_GLOVE_SWITCH
 	if(yl_pm8916_vbus_is_usb_chg_plugged_in(chip))
-		    yl_is_charger_in=1;
-
+		    yl_is_charger_in=1; 
+	
 	INIT_DELAYED_WORK(&gtp_charger_status_check_work, gtp_charger_status_check_func);
     gtp_charger_status_check_workqueue = create_workqueue("gtp_charger_status_check");
 
@@ -697,7 +697,7 @@ static int yl_pm8916_vbus_probe(struct spmi_device *spmi)
 				USB_SUSPEND_BIT, 1);
 	if(rc)
 		pr_err("Unable to set USB_SUSP_REG rc=%d\n", rc);
-
+	
 
 	pr_info("LBC probed USB is %s\n", chip->usb_present ? "connected" :"not conneccted");
         pr_info("=====probe success====\n");

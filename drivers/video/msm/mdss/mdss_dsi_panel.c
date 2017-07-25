@@ -23,16 +23,18 @@
 #include <linux/err.h>
 #include <linux/display_state.h>
 #include "mdss_dsi.h"
-#ifdef CONFIG_MACH_WT86518
-#include <linux/hardware_info.h> //req  wuzhenzhen.wt 20140924 add for hardware info
-#endif
 #include "mdss_livedisplay.h"
-
-#ifdef CONFIG_POWERSUSPEND
-#include <linux/powersuspend.h>
+#ifdef CONFIG_MACH_WT86518
+#include <linux/hardware_info.h>
 #endif
-
 #define DT_CMD_HDR 6
+
+#ifdef CONFIG_MACH_LONGCHEER
+#define LCM_SUPPORT_READ_VERSION
+#endif
+#ifdef LCM_SUPPORT_READ_VERSION
+char g_lcm_id[128];
+#endif
 
 /* NT35596 panel specific status variables */
 #define NT35596_BUF_3_STATUS 0x02
@@ -48,11 +50,11 @@
 #define TPS65132_GPIO_NEG_EN 903
 #endif
 
-DEFINE_LED_TRIGGER(bl_led_trigger);
-
 #ifdef CONFIG_MACH_WT86518
-extern bool is_Lcm_Present;//heming@wingtech.com,20140730, disable lcm backlight when lcm is not connected
+extern bool is_Lcm_Present;
 #endif
+
+DEFINE_LED_TRIGGER(bl_led_trigger);
 
 bool display_on = true;
 
@@ -61,7 +63,6 @@ bool is_display_on()
 	return display_on;
 }
 
->>>>>>> c155824... display: add a simple api to query the display state (on/off) at any point in time
 void mdss_dsi_panel_pwm_cfg(struct mdss_dsi_ctrl_pdata *ctrl)
 {
 	if (ctrl->pwm_pmi)
@@ -73,7 +74,7 @@ void mdss_dsi_panel_pwm_cfg(struct mdss_dsi_ctrl_pdata *ctrl)
 				__func__, ctrl->pwm_lpg_chan);
 	}
 #ifdef CONFIG_MACH_WT86518
-	ctrl->pwm_enabled = 1;//hoper
+        ctrl->pwm_enabled = 1;
 #else
 	ctrl->pwm_enabled = 0;
 #endif
@@ -684,10 +685,6 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 
 	display_on = true;
 
-#ifdef CONFIG_POWERSUSPEND
-	set_power_suspend_state_panel_hook(POWER_SUSPEND_INACTIVE);
-#endif
-
 	pinfo = &pdata->panel_info;
 	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
@@ -774,10 +771,6 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->off_cmds);
 
 	display_on = false;
-
-#ifdef CONFIG_POWERSUSPEND
-	set_power_suspend_state_panel_hook(POWER_SUSPEND_ACTIVE);
-#endif
 
 end:
 	pinfo->blank_state = MDSS_PANEL_BLANK_BLANK;
@@ -1253,7 +1246,6 @@ static int mdss_dsi_parse_reset_seq(struct device_node *np,
 	}
 	return 0;
 }
-
 #ifndef CONFIG_MACH_WT86518
 static int mdss_dsi_gen_read_status(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
@@ -1706,7 +1698,6 @@ static void mdss_dsi_set_lane_clamp_mask(struct mipi_panel_info *mipi)
 }
 
 #ifdef CONFIG_MACH_WT86518
-//+Other_LCD wuzhenzhen.wt,MODIFY,2014/1/15,modify LCD ESD check methods to read multiful registers and values*/
 void mdss_dsi_parse_status_command(struct device_node *np, struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
 	int i=0;
@@ -1721,14 +1712,14 @@ void mdss_dsi_parse_status_command(struct device_node *np, struct mdss_dsi_ctrl_
 }
 int mdss_dsi_parse_status_value(struct device_node *np, struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
-	int len = 0;	
+	int len = 0;
 	int i = 0,rc=0;
 	struct property *data;
 	char cmd_key[] = "qcom,mdss-dsi-panel-status-value1";
-	int j = 1;	
+	int j = 1;
 	u32 sta_val[5];
 	int cmd_len = strlen(cmd_key);
-	
+
 	for(j = 1;j <= ctrl_pdata->status_cmds_num;j++)
 	{
 		cmd_key[cmd_len-1] = j + '0';
@@ -1751,7 +1742,6 @@ int mdss_dsi_parse_status_value(struct device_node *np, struct mdss_dsi_ctrl_pda
 	}
 	return 1;
 }
-//-Other_LCD wuzhenzhen.wt,MODIFY,2014/1/15,modify LCD ESD check methods to read multiful registers and values*/
 #endif
 
 static int mdss_panel_parse_dt(struct device_node *np,
@@ -2089,19 +2079,16 @@ static int mdss_panel_parse_dt(struct device_node *np,
 #endif
 
 #ifdef CONFIG_MACH_WT86518
-	//+Other_LCD wuzhenzhen.wt,MODIFY,2014/12/25,modify LCD ESD check methods to read multiful registers and values*/
-
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-panel-status-command-num", &tmp);
 	ctrl_pdata->status_cmds_num = (!rc ? tmp : 0);
 
 	mdss_dsi_parse_status_command(np, ctrl_pdata);
-	
+
 	rc = mdss_dsi_parse_status_value(np, ctrl_pdata);
 	if (!rc) {
 		pr_err("%s: failed to parse panel status_value\n", __func__);
 		goto error;
 	}
-	//-Other_LCD wuzhenzhen.wt,MODIFY,2014/12/25,modify LCD ESD check methods to read multiful registers and values*/
 #endif
 
 #ifndef CONFIG_MACH_WT86518
@@ -2110,7 +2097,9 @@ static int mdss_panel_parse_dt(struct device_node *np,
 				"qcom,mdss-dsi-panel-status-command-state");
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-panel-status-value", &tmp);
 	ctrl_pdata->status_value = (!rc ? tmp : 0);
+
 #endif
+
 	ctrl_pdata->status_mode = ESD_MAX;
 	rc = of_property_read_string(np,
 				"qcom,mdss-dsi-panel-status-check-mode", &data);
@@ -2120,11 +2109,9 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		} else if (!strcmp(data, "reg_read")) {
 			ctrl_pdata->status_mode = ESD_REG;
 #ifdef CONFIG_MACH_WT86518
-		ctrl_pdata->status_cmds_rlen = 4;
-		//	ctrl_pdata->check_read_status =
-		//				mdss_dsi_gen_read_status;
+		 	ctrl_pdata->status_cmds_rlen = 4;
 #else
-		ctrl_pdata->status_cmds_rlen = 1;
+			ctrl_pdata->status_cmds_rlen = 1;
 			ctrl_pdata->check_read_status =
 						mdss_dsi_gen_read_status;
 #endif
@@ -2133,9 +2120,7 @@ static int mdss_panel_parse_dt(struct device_node *np,
 			ctrl_pdata->status_error_count = 0;
 			ctrl_pdata->status_cmds_rlen = 8;
 #ifdef CONFIG_MACH_WT86518
-		//	ctrl_pdata->check_read_status =
-		//				mdss_dsi_nt35596_read_status;
-		} else if (!strcmp(data, "te_signal_check")) {
+			} else if (!strcmp(data, "te_signal_check")) {
 #else
 			ctrl_pdata->check_read_status =
 						mdss_dsi_nt35596_read_status;
@@ -2228,7 +2213,7 @@ static int msm_lcd_name_create_sysfs(void)
 #endif
 
 #ifdef CONFIG_MACH_WT86518
-extern char Lcm_name[HARDWARE_MAX_ITEM_LONGTH]; //req  wuzhenzhen.wt 20140924 add for hardware info
+extern char Lcm_name[HARDWARE_MAX_ITEM_LONGTH];
 #endif
 
 int mdss_dsi_panel_init(struct device_node *node,
@@ -2256,10 +2241,9 @@ int mdss_dsi_panel_init(struct device_node *node,
 		pr_info("%s: Panel Name = %s\n", __func__, panel_name);
 		strlcpy(&pinfo->panel_name[0], panel_name, MDSS_MAX_PANEL_LEN);
 #ifdef CONFIG_MACH_WT86518
-		strcpy(Lcm_name,panel_name);//req  wuzhenzhen.wt 20140924 add for hardware info
+	strcpy(Lcm_name,panel_name);
 #endif
 	}
-
 #ifdef LCM_SUPPORT_READ_VERSION
 		rc = mdss_panel_parse_panel_name(node);
 		if (rc) {
@@ -2267,7 +2251,6 @@ int mdss_dsi_panel_init(struct device_node *node,
 			return rc;
 		}
 #endif
-
 	rc = mdss_panel_parse_dt(node, ctrl_pdata);
 	if (rc) {
 		pr_err("%s:%d panel dt parse failed\n", __func__, __LINE__);
@@ -2287,16 +2270,19 @@ int mdss_dsi_panel_init(struct device_node *node,
 	ctrl_pdata->on = mdss_dsi_panel_on;
 	ctrl_pdata->post_panel_on = mdss_dsi_post_panel_on;
 	ctrl_pdata->off = mdss_dsi_panel_off;
+	ctrl_pdata->low_power_config = mdss_dsi_panel_low_power_config;
 #ifdef CONFIG_MACH_WT86518
-	if(is_Lcm_Present)//heming@wingtech.com,20140730, disable lcm backlight when lcm is not connected
-	{
-		ctrl_pdata->panel_data.set_backlight = mdss_dsi_panel_bl_ctrl;
-	}
+	if(is_Lcm_Present)
+{
+	ctrl_pdata->panel_data.set_backlight = mdss_dsi_panel_bl_ctrl;
+}
 #else
 	ctrl_pdata->panel_data.set_backlight = mdss_dsi_panel_bl_ctrl;
 #endif
-	ctrl_pdata->low_power_config = mdss_dsi_panel_low_power_config;
 	ctrl_pdata->switch_mode = mdss_dsi_panel_switch_mode;
 
+#ifdef LCM_SUPPORT_READ_VERSION
+	msm_lcd_name_create_sysfs();
+#endif
 	return 0;
 }

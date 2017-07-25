@@ -7317,3 +7317,4 @@ BMG160_RETURN_FUNCTION_TYPE bmg160_set_sleepdur(unsigned char duration)
 	}
 	return comres;
 }
+

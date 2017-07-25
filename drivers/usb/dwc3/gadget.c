@@ -394,9 +394,9 @@ int dwc3_send_gadget_generic_command(struct dwc3 *dwc, int cmd, u32 param)
 		if (!(reg & DWC3_DGCMD_CMDACT)) {
 			dev_vdbg(dwc->dev, "Command Complete --> %d\n",
 					DWC3_DGCMD_STATUS(reg));
-			ret = 0;
 			if (DWC3_DGCMD_STATUS(reg))
-				ret = -EINVAL;
+				return -EINVAL;
+			ret = 0;
 			break;
 		}
 
@@ -438,6 +438,8 @@ int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 		if (!(reg & DWC3_DEPCMD_CMDACT)) {
 			dev_vdbg(dwc->dev, "Command Complete --> %d\n",
 					DWC3_DEPCMD_STATUS(reg));
+			if (DWC3_DEPCMD_STATUS(reg))
+				return -EINVAL;
 			/* SW issues START TRANSFER command to isochronous ep
 			 * with future frame interval. If future interval time
 			 * has already passed when core recieves command, core
@@ -446,8 +448,6 @@ int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 			 */
 			if (reg & 0x2000)
 				ret = -EAGAIN;
-			else if (DWC3_DEPCMD_STATUS(reg))
-				ret = -EINVAL;
 			else
 				ret = 0;
 			break;
@@ -1094,8 +1094,10 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep, bool starting)
 					struct usb_request *ureq;
 					bool mpkt = false;
 
+					if (list_empty(&dep->request_list))
+						last_one = true;
 					chain = false;
-					if (list_empty(&dep->request_list)) {
+					if (last_req) {
 						last_one = true;
 						goto start_trb_queuing;
 					}
@@ -1146,7 +1148,6 @@ start_trb_queuing:
 					break;
 			}
 			dbg_queue(dep->number, &req->request, trbs_left);
-
 			if (last_one)
 				break;
 		} else {

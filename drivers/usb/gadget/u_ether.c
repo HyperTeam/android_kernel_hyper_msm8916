@@ -93,9 +93,9 @@ struct eth_dev {
 
 	spinlock_t		req_lock;	/* guard {rx,tx}_reqs */
 	struct list_head	tx_reqs, rx_reqs;
-	atomic_t		tx_qlen;
+	unsigned		tx_qlen;
 /* Minimum number of TX USB request queued to UDC */
-#define TX_REQ_THRESHOLD	5
+#define MAX_TX_REQ_WITH_NO_INT	5
 	int			no_tx_req_used;
 	int			tx_skb_hold_count;
 	u32			tx_req_bufsize;
@@ -721,12 +721,12 @@ static void tx_complete(struct usb_ep *ep, struct usb_request *req)
 	dev->net->stats.tx_packets += n;
 
 	spin_lock(&dev->req_lock);
-	list_add_tail(&req->list, &dev->tx_reqs);
 
 	if (req->num_sgs) {
 		if (!req->status)
 			queue_work(uether_tx_wq, &dev->tx_work);
 
+		list_add_tail(&req->list, &dev->tx_reqs);
 		spin_unlock(&dev->req_lock);
 		return;
 	}
@@ -736,7 +736,8 @@ static void tx_complete(struct usb_ep *ep, struct usb_request *req)
 		req->length = 0;
 		in = dev->port_usb->in_ep;
 
-		if (!list_empty(&dev->tx_reqs)) {
+		/* Do not process further if no_interrupt is set */
+		if (!req->no_interrupt && !list_empty(&dev->tx_reqs)) {
 			new_req = container_of(dev->tx_reqs.next,
 					struct usb_request, list);
 			list_del(&new_req->list);
@@ -764,6 +765,16 @@ static void tx_complete(struct usb_ep *ep, struct usb_request *req)
 					length++;
 				}
 
+				/* set when tx completion interrupt needed */
+				spin_lock(&dev->req_lock);
+				dev->tx_qlen++;
+				if (dev->tx_qlen == MAX_TX_REQ_WITH_NO_INT) {
+					new_req->no_interrupt = 0;
+					dev->tx_qlen = 0;
+				} else {
+					new_req->no_interrupt = 1;
+				}
+				spin_unlock(&dev->req_lock);
 				new_req->length = length;
 				retval = usb_ep_queue(in, new_req, GFP_ATOMIC);
 				switch (retval) {
@@ -809,7 +820,11 @@ static void tx_complete(struct usb_ep *ep, struct usb_request *req)
 		dev_kfree_skb_any(skb);
 	}
 
-	atomic_dec(&dev->tx_qlen);
+	/* put the completed req back to tx_reqs tail pool */
+	spin_lock(&dev->req_lock);
+	list_add_tail(&req->list, &dev->tx_reqs);
+	spin_unlock(&dev->req_lock);
+
 	if (netif_carrier_ok(dev->net))
 		netif_wake_queue(dev->net);
 }
@@ -1134,7 +1149,14 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 		spin_lock_irqsave(&dev->req_lock, flags);
 		dev->tx_skb_hold_count++;
 		if (dev->tx_skb_hold_count < dev->dl_max_pkts_per_xfer) {
-			if (dev->no_tx_req_used > TX_REQ_THRESHOLD) {
+
+			/*
+			 * should allow aggregation only, if the number of
+			 * requests queued more than the tx requests that can
+			 *  be queued with no interrupt flag set sequentially.
+			 * Otherwise, packets may be blocked forever.
+			 */
+			if (dev->no_tx_req_used > MAX_TX_REQ_WITH_NO_INT) {
 				list_add(&req->list, &dev->tx_reqs);
 				spin_unlock_irqrestore(&dev->req_lock, flags);
 				goto success;
@@ -1176,7 +1198,6 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 		break;
 	case 0:
 		net->trans_start = jiffies;
-		atomic_inc(&dev->tx_qlen);
 	}
 
 	if (retval) {
@@ -1205,7 +1226,7 @@ static void eth_start(struct eth_dev *dev, gfp_t gfp_flags)
 	rx_fill(dev, gfp_flags);
 
 	/* and open the tx floodgates */
-	atomic_set(&dev->tx_qlen, 0);
+	dev->tx_qlen = 0;
 	netif_wake_queue(dev->net);
 }
 

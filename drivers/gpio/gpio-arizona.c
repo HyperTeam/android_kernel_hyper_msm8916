@@ -19,7 +19,6 @@
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/seq_file.h>
-#include <linux/pm_runtime.h>
 
 #include <linux/mfd/arizona/core.h>
 #include <linux/mfd/arizona/pdata.h>
@@ -106,17 +105,14 @@ static int clearwater_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 	offset *= 2;
 
-	pm_runtime_get_sync(arizona->dev);
-
 	ret = regmap_read(arizona->regmap, CLEARWATER_GPIO1_CTRL_1 + offset, &val);
 	if (ret < 0)
-		goto err;
+		return ret;
 
-	ret = val & CLEARWATER_GPN_LVL ? 1 : 0;
-
-err:
-	pm_runtime_put_sync(arizona->dev);
-	return ret;
+	if (val & CLEARWATER_GPN_LVL)
+		return 1;
+	else
+		return 0;
 }
 
 static int clearwater_gpio_direction_out(struct gpio_chip *chip,
@@ -125,98 +121,33 @@ static int clearwater_gpio_direction_out(struct gpio_chip *chip,
 	struct arizona_gpio *arizona_gpio = to_arizona_gpio(chip);
 	struct arizona *arizona = arizona_gpio->arizona;
 	int ret;
-	unsigned int old_val, new_val;
 
 	offset *= 2;
 
 	if (value)
 		value = CLEARWATER_GPN_LVL;
 
-	pm_runtime_get_sync(arizona->dev);
-
 	ret = regmap_update_bits(arizona->regmap, CLEARWATER_GPIO1_CTRL_2 + offset,
 				  ARIZONA_GPN_DIR, 0);
 	if (ret < 0)
-		goto err;
+		return ret;
 
-	ret = regmap_read(arizona->regmap, CLEARWATER_GPIO1_CTRL_1 + offset, &old_val);
-	if (ret == 0) {
-		new_val = (old_val) & (~CLEARWATER_GPN_LVL);
-		new_val |= value;
-		if (new_val != old_val) {
-			regmap_write(arizona->regmap, CLEARWATER_GPIO1_CTRL_1 + offset, new_val);
-			arizona->pdata.gpio_defaults[offset] = new_val;
-		}
-	}
-
-err:
-	pm_runtime_put_sync(arizona->dev);
-	return ret;
+	return regmap_update_bits(arizona->regmap, CLEARWATER_GPIO1_CTRL_1 + offset,
+				  CLEARWATER_GPN_LVL, value);
 }
 
 static void clearwater_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	struct arizona_gpio *arizona_gpio = to_arizona_gpio(chip);
 	struct arizona *arizona = arizona_gpio->arizona;
-	unsigned int old_val, new_val;
-	int ret;
 
 	offset *= 2;
 
 	if (value)
 		value = CLEARWATER_GPN_LVL;
 
-	pm_runtime_get_sync(arizona->dev);
-
-	ret = regmap_read(arizona->regmap, CLEARWATER_GPIO1_CTRL_1 + offset, &old_val);
-	if (ret == 0) {
-		new_val = (old_val) & (~CLEARWATER_GPN_LVL);
-		new_val |= value;
-		if (new_val != old_val) {
-			regmap_write(arizona->regmap, CLEARWATER_GPIO1_CTRL_1 + offset, new_val);
-			arizona->pdata.gpio_defaults[offset] = new_val;
-		}
-	}
-
-	pm_runtime_put_sync(arizona->dev);
-}
-
-static int clearwater_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
-{
-	struct arizona_gpio *arizona_gpio = to_arizona_gpio(chip);
-	struct arizona *arizona = arizona_gpio->arizona;
-	int irq;
-
-	switch (offset) {
-	case 0:
-		irq = ARIZONA_IRQ_GP1;
-		break;
-	case 1:
-		irq = ARIZONA_IRQ_GP2;
-		break;
-	case 2:
-		irq = ARIZONA_IRQ_GP3;
-		break;
-	case 3:
-		irq = ARIZONA_IRQ_GP4;
-		break;
-	case 4:
-		irq = ARIZONA_IRQ_GP5;
-		break;
-	case 5:
-		irq = ARIZONA_IRQ_GP6;
-		break;
-	case 6:
-		irq = ARIZONA_IRQ_GP7;
-		break;
-	case 7:
-		irq = ARIZONA_IRQ_GP8;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return arizona_map_irq(arizona, irq);
+	regmap_update_bits(arizona->regmap, CLEARWATER_GPIO1_CTRL_1 + offset,
+			   CLEARWATER_GPN_LVL, value);
 }
 
 static struct gpio_chip template_chip = {
@@ -266,7 +197,7 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 			clearwater_gpio_direction_out;
 		arizona_gpio->gpio_chip.set = clearwater_gpio_set;
 
-		arizona_gpio->gpio_chip.ngpio = CLEARWATER_NUM_GPIOS;
+		arizona_gpio->gpio_chip.ngpio = 40;
 		break;
 	case WM1831:
 	case CS47L24:
@@ -279,32 +210,8 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 		arizona_gpio->gpio_chip.direction_output =
 			clearwater_gpio_direction_out;
 		arizona_gpio->gpio_chip.set = clearwater_gpio_set;
-		arizona_gpio->gpio_chip.to_irq = clearwater_gpio_to_irq;
 
-		arizona_gpio->gpio_chip.ngpio = MARLEY_NUM_GPIOS;
-		break;
-	case CS47L90:
-	case CS47L91:
-		arizona_gpio->gpio_chip.direction_input =
-			clearwater_gpio_direction_in;
-		arizona_gpio->gpio_chip.get = clearwater_gpio_get;
-		arizona_gpio->gpio_chip.direction_output =
-			clearwater_gpio_direction_out;
-		arizona_gpio->gpio_chip.set = clearwater_gpio_set;
-		arizona_gpio->gpio_chip.to_irq = clearwater_gpio_to_irq;
-
-		arizona_gpio->gpio_chip.ngpio = MOON_NUM_GPIOS;
-		break;
-	case CS47L15:
-		arizona_gpio->gpio_chip.direction_input =
-			clearwater_gpio_direction_in;
-		arizona_gpio->gpio_chip.get = clearwater_gpio_get;
-		arizona_gpio->gpio_chip.direction_output =
-			clearwater_gpio_direction_out;
-		arizona_gpio->gpio_chip.set = clearwater_gpio_set;
-		arizona_gpio->gpio_chip.to_irq = clearwater_gpio_to_irq;
-
-		arizona_gpio->gpio_chip.ngpio = CS47L15_NUM_GPIOS;
+		arizona_gpio->gpio_chip.ngpio = 16;
 		break;
 	default:
 		dev_err(&pdev->dev, "Unknown chip variant %d\n",
